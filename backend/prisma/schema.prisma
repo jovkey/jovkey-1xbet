@@ -1,0 +1,321 @@
+// JOVKEY-1XBET — Schéma de données (PostgreSQL via Prisma)
+// Conforme au §3 du PDF : étanchéité des rôles, clé unique id_1xbet,
+// statut du tunnel Flash, compteur d'avis, élasticité investisseur.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  gold
+  investor
+  admin
+  superadmin
+}
+
+enum FlashStatus {
+  pending // déclenche l'écran de temporisation 24h
+  approved
+  rejected
+}
+
+enum ReviewStatus {
+  published // 4-5★ ou validé par l'admin → visible public
+  pending   // < 4★ → file de modération admin
+  rejected
+}
+
+enum InvestmentStatus {
+  active
+  closed
+  refunded
+}
+
+/// État du compte. Gold s'inscrit en `pending_payment` tant que l'admin n'a pas
+/// validé le paiement ; investor et comptes validés sont `active`.
+enum AccountStatus {
+  active
+  pending_payment
+  suspended
+}
+
+/// Moyens de paiement locaux (mobile money Afrique) + internationaux.
+enum PaymentMethod {
+  mtn
+  moov
+  orange
+  wave
+  card
+  paypal
+  other
+}
+
+enum PaymentStatus {
+  pending   // déclaré par le client, en attente de vérification admin
+  validated
+  rejected
+}
+
+enum PaymentPurpose {
+  gold_subscription // abonnement Gold (5600 FCFA / mois)
+  investor_deposit  // recharge du capital investisseur
+}
+
+enum WithdrawalStatus {
+  pending   // demande envoyée, validation admin obligatoire avant versement
+  validated
+  rejected
+  paid
+}
+
+/// Un utilisateur "lambda" anonyme n'a AUCUN compte : seuls gold/investor/admin existent.
+model User {
+  id                  String       @id @default(cuid())
+  email               String?      @unique // identifiant de connexion (Gold/Investor/admin)
+  id1xbet             String?      @unique @map("id_1xbet") // ID 1xBet : demandé seulement au tunnel Flash
+  whatsappNum         String?      @map("whatsapp_num")
+  passwordHash        String?      @map("password_hash") // null tant que pending
+  role                Role
+  accountStatus       AccountStatus @default(active) @map("account_status")
+  country             String?
+  statusFlash         FlashStatus  @default(pending) @map("status_flash")
+  subscriptionEndsAt  DateTime?    @map("subscription_ends_at") // Gold : fin d'abonnement (renouvelée +30j à chaque paiement validé)
+  lastInvestmentDate  DateTime?    @map("last_investment_date")
+  reviewsWritten      Int          @default(0) @map("reviews_written")
+  communityLinkSent   Boolean      @default(false) @map("community_link_sent")
+  eligibleForReinvest Boolean      @default(false) @map("eligible_for_reinvest")
+
+  // §3 — Trois soldes étanches pour l'investisseur (validation admin avant retrait).
+  balanceWithdrawable  Decimal @default(0) @db.Decimal(12, 2) @map("balance_withdrawable")  // retirable
+  balanceUnderAnalysis Decimal @default(0) @db.Decimal(12, 2) @map("balance_under_analysis") // sous analyse
+  balanceFrozen        Decimal @default(0) @db.Decimal(12, 2) @map("balance_frozen")          // gelé (investi 1 mois)
+
+  createdAt           DateTime     @default(now()) @map("created_at")
+  updatedAt           DateTime     @updatedAt @map("updated_at")
+
+  investments   Investment[]
+  reviews       Review[]
+  payments      Payment[]
+  withdrawals   Withdrawal[]
+  notifications Notification[]
+
+  @@index([role])
+  @@index([statusFlash])
+  @@index([accountStatus])
+  @@index([lastInvestmentDate])
+  @@map("users")
+}
+
+/// Paiement déclaré par un client (mobile money / carte / PayPal), validé
+/// manuellement par l'admin. Sert à la fois pour l'abonnement Gold et la
+/// recharge de capital investisseur.
+model Payment {
+  id         String         @id @default(cuid())
+  userId     String         @map("user_id")
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount     Decimal        @db.Decimal(12, 2)
+  currency   String         @default("XOF")
+  method     PaymentMethod
+  purpose    PaymentPurpose
+  status     PaymentStatus  @default(pending)
+  reference  String?        // numéro mobile money / réf transaction / email PayPal
+  payerInfo  String?        @map("payer_info")
+  providerTxId String?      @unique @map("provider_tx_id") // id transaction FedaPay
+  checkoutUrl  String?      @map("checkout_url")           // URL de paiement FedaPay
+  createdAt  DateTime       @default(now()) @map("created_at")
+  reviewedAt DateTime?      @map("reviewed_at")
+
+  @@index([status])
+  @@index([userId])
+  @@map("payments")
+}
+
+/// Demande de retrait investisseur. Tout retrait est gelé tant que l'admin
+/// ne l'a pas validé depuis le panel.
+model Withdrawal {
+  id          String           @id @default(cuid())
+  userId      String           @map("user_id")
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount      Decimal          @db.Decimal(12, 2)
+  method      PaymentMethod
+  destination String?          // numéro / IBAN / email de réception
+  status      WithdrawalStatus @default(pending)
+  note        String?
+  createdAt   DateTime         @default(now()) @map("created_at")
+  reviewedAt  DateTime?        @map("reviewed_at")
+
+  @@index([status])
+  @@index([userId])
+  @@map("withdrawals")
+}
+
+/// Soumissions du tunnel Flash avant qu'un compte soit créé/validé.
+model FlashLead {
+  id          String      @id @default(cuid())
+  id1xbet     String      @map("id_1xbet")
+  whatsappNum String      @map("whatsapp_num")
+  status      FlashStatus @default(pending)
+  sourceTunnel String     @default("flash") @map("source_tunnel") // flash | gold | investor
+  createdAt   DateTime    @default(now()) @map("created_at")
+  reviewedAt  DateTime?   @map("reviewed_at")
+
+  @@index([status])
+  @@map("flash_leads")
+}
+
+model Investment {
+  id        String           @id @default(cuid())
+  userId    String           @map("user_id")
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  capital   Decimal          @db.Decimal(12, 2)
+  cycleMonth String          @map("cycle_month") // "2026-06"
+  status    InvestmentStatus @default(active)
+  pnl       Decimal          @default(0) @db.Decimal(12, 2) // profit/perte courant
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([cycleMonth])
+  @@map("investments")
+}
+
+/// Point de performance du book de trading sportif (pour le graphique investisseur).
+model PerformancePoint {
+  id        String   @id @default(cuid())
+  cycleMonth String  @map("cycle_month")
+  day       DateTime
+  bankrollPct Float  @map("bankroll_pct") // évolution en % du capital géré
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([cycleMonth])
+  @@map("performance_points")
+}
+
+model Review {
+  id        String       @id @default(cuid())
+  userId    String?      @map("user_id")
+  user      User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  authorName String      @map("author_name")
+  rating    Int          // 1..5
+  body      String
+  status    ReviewStatus @default(pending)
+  isSeed    Boolean      @default(false) @map("is_seed") // contenu de démo, jamais présenté comme vrai client
+  createdAt DateTime     @default(now()) @map("created_at")
+
+  @@index([status])
+  @@index([rating])
+  @@map("reviews")
+}
+
+/// Pronostic poussé par le moteur d'analyse nocturne (ou créé/validé par l'admin).
+model Prediction {
+  id          String   @id @default(cuid())
+  sport       String   // football | basketball | hockey | tennis_table
+  match       String
+  market      String   // "Cote 2", "Score exact", "Montante", ...
+  selection   String
+  odds        Float
+  reliability Int      @map("reliability") // 0..100
+  couponCode  String   @map("coupon_code")  // ID coupon 1xBet à copier
+  tier        String   @default("free") // free | gold | investor
+  isValidated Boolean  @default(false) @map("is_validated") // validé manuellement par admin
+  valueScore  Float    @default(0) @map("value_score") // score anti-piège (value betting inversé)
+  analysis    Json?    // données brutes IA : cotes de niche, enjeu, forme, profil arbitre…
+  extMatchId  String?  @unique @map("ext_match_id") // id du match chez le fournisseur (Sofascore) → notation ; unique = anti-doublon si le moteur repasse sur le même match
+  gradeType   String?  @map("grade_type")   // type de pari à noter : 1x2_home | over25 | btts…
+  startsAt    DateTime? @map("starts_at")
+  eventDate   String?  @map("event_date") // jour du match "2026-06-24" (regroupement/notation)
+  result      String   @default("pending") // pending | won | lost | void
+  resultNote  String?  @map("result_note")  // score réel / commentaire de notation
+  playedAt    DateTime? @map("played_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([tier])
+  @@index([sport])
+  @@index([result])
+  @@index([eventDate])
+  @@map("predictions")
+}
+
+/// CMS piloté à distance par l'admin (carrousel, vidéo, marquee).
+model CmsSetting {
+  key       String   @id // ex: "tutorial_video", "promo_code"
+  value     Json
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("cms_settings")
+}
+
+model CarouselSlide {
+  id        String   @id @default(cuid())
+  imageUrl  String   @map("image_url")
+  caption   String?
+  linkTunnel String  @default("flash") @map("link_tunnel") // gold | flash | investor
+  position  Int      @default(0)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([position])
+  @@map("carousel_slides")
+}
+
+model MarqueeMessage {
+  id        String   @id @default(cuid())
+  text      String
+  position  Int      @default(0)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([position])
+  @@map("marquee_messages")
+}
+
+/// Statistiques de trafic (visiteurs uniques, vues, clics code promo).
+model TrafficEvent {
+  id        String   @id @default(cuid())
+  type      String   // "page_view" | "unique_visitor" | "promo_click" | "coupon_copy"
+  path      String?
+  source    String?  // provenance : tiktok | whatsapp | telegram | direct | autre
+  visitorId String?  @map("visitor_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([type])
+  @@index([source])
+  @@index([createdAt])
+  @@map("traffic_events")
+}
+
+/// Bibliothèque média : fichiers (image/vidéo) uploadés depuis le panel admin.
+/// Stockés sur le disque local du backend et servis sous /uploads.
+model MediaAsset {
+  id           String   @id @default(cuid())
+  filename     String   // nom de fichier sur le disque
+  originalName String   @map("original_name")
+  url          String   // chemin public, ex: /uploads/xxxx.mp4
+  mimeType     String   @map("mime_type")
+  kind         String   // image | video
+  size         Int
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([kind])
+  @@map("media_assets")
+}
+
+/// Notification adressée à un membre (dépôt accepté/refusé, gain libéré…). Poussée en
+/// temps réel via SSE et listée au chargement du dashboard investisseur/Gold.
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String   @default("info") // info | success | warning
+  message   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId, read])
+  @@map("notifications")
+}

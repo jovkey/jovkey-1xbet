@@ -1,0 +1,29 @@
+{
+  "_comment": "Compétitions suivies. La saison COURANTE est résolue automatiquement via get-seasons (pas besoin de saisir seasonId). 'big' = priorité ; 'fallback' = utilisé seulement si aucun grand match ce jour-là. tournamentId = uniqueTournament Sofascore.",
+  "big": [
+    { "name": "Coupe du Monde", "tournamentId": 16 },
+    { "name": "Ligue des Champions", "tournamentId": 7 },
+    { "name": "Ligue Europa", "tournamentId": 679 },
+    { "name": "Premier League", "tournamentId": 17 },
+    { "name": "La Liga", "tournamentId": 8 },
+    { "name": "Serie A", "tournamentId": 23 },
+    { "name": "Bundesliga", "tournamentId": 35 },
+    { "name": "Ligue 1", "tournamentId": 34 }
+  ],
+  "fallback": [
+    { "name": "Eredivisie", "tournamentId": 37 },
+    { "name": "Primeira Liga", "tournamentId": 238 },
+    { "name": "Championship", "tournamentId": 18 },
+    { "name": "Brésil Serie A", "tournamentId": 325 },
+    { "name": "MLS", "tournamentId": 242 }
+  ],
+  "_comment_scored": "Basket/hockey (vainqueur + total points/buts) — IDs vérifiés en direct via /tournaments/get-seasons (voir DEPLOY.md). Vide en intersaison (juillet-septembre) : aucun match inventé, on n'affiche simplement rien ce jour-là.",
+  "scored": {
+    "basketball": [
+      { "name": "NBA", "tournamentId": 132 }
+    ],
+    "hockey": [
+      { "name": "NHL", "tournamentId": 234 }
+    ]
+  }
+}

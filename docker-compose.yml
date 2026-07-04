@@ -1,0 +1,70 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
+      PORT: ${PORT}
+      ADMIN_SECRET_ROUTE: ${ADMIN_SECRET_ROUTE}
+      SUPERADMIN_BOOTSTRAP_PASSWORD: ${SUPERADMIN_BOOTSTRAP_PASSWORD}
+      ANALYSIS_API_KEY: ${ANALYSIS_API_KEY}
+    ports:
+      - "4000:4000"
+    command: sh -c "npx prisma db push --accept-data-loss && npm run seed && node dist/main.js"
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+      NEXT_PUBLIC_ADMIN_ROUTE: ${NEXT_PUBLIC_ADMIN_ROUTE}
+      NEXT_PUBLIC_PROMO_CODE: ${NEXT_PUBLIC_PROMO_CODE}
+    ports:
+      - "3000:3000"
+
+  analysis-engine:
+    build: ./analysis-engine
+    restart: unless-stopped
+    depends_on:
+      - redis
+      - backend
+    environment:
+      REDIS_URL: ${REDIS_URL}
+      ANALYSIS_API_KEY: ${ANALYSIS_API_KEY}
+      BACKEND_INTERNAL_URL: ${BACKEND_INTERNAL_URL}
+    ports:
+      - "8000:8000"
+    command: sh -c "celery -A app.worker.celery_app worker --beat --loglevel=info & uvicorn app.main:app --host 0.0.0.0 --port 8000"
+
+volumes:
+  pgdata:
