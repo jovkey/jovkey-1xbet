@@ -15,12 +15,17 @@
     { "name": "Primeira Liga", "tournamentId": 238 },
     { "name": "Championship", "tournamentId": 18 },
     { "name": "Brésil Serie A", "tournamentId": 325 },
-    { "name": "MLS", "tournamentId": 242 }
+    { "name": "MLS", "tournamentId": 242 },
+    { "name": "J1 League (Japon)", "tournamentId": 196 },
+    { "name": "K League 1 (Corée du Sud)", "tournamentId": 410 },
+    { "name": "Allsvenskan (Suède)", "tournamentId": 40 },
+    { "name": "Eliteserien (Norvège)", "tournamentId": 20 }
   ],
-  "_comment_scored": "Basket/hockey (vainqueur + total points/buts) — IDs vérifiés en direct via /tournaments/get-seasons (voir DEPLOY.md). Vide en intersaison (juillet-septembre) : aucun match inventé, on n'affiche simplement rien ce jour-là.",
+  "_comment_scored": "Basket/hockey (vainqueur + total points/buts) — IDs vérifiés en direct via /tournaments/get-seasons (voir DEPLOY.md). Vide en intersaison (juillet-septembre pour NBA/NHL) : aucun match inventé, on n'affiche simplement rien ce jour-là. WNBA ajoutée : seule grande ligue basket active en plein été (mai-septembre). Aucune ligue de hockey professionnelle majeure n'est active en juillet dans le monde (saisons Nord = sept-avril) — rien à ajouter honnêtement pour ce sport en cette saison.",
   "scored": {
     "basketball": [
-      { "name": "NBA", "tournamentId": 132 }
+      { "name": "NBA", "tournamentId": 132 },
+      { "name": "WNBA", "tournamentId": 486 }
     ],
     "hockey": [
       { "name": "NHL", "tournamentId": 234 }
