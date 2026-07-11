@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { CheckCircle2, Loader2, XCircle } from 'lucide-react';
 import { API_URL } from '@/lib/config';
-import { pollPaymentStatus } from '@/lib/fedapayCheckout';
+import { pollPaymentStatus, PaymentPurpose } from '@/lib/fedapayCheckout';
 
 type Status = 'checking' | 'validated' | 'rejected' | 'pending' | 'error';
 
@@ -14,34 +14,37 @@ type Status = 'checking' | 'validated' | 'rejected' | 'pending' | 'error';
  */
 function useFedapayStatus(tx: string | null) {
   const [status, setStatus] = useState<Status>(tx ? 'checking' : 'error');
+  const [purpose, setPurpose] = useState<PaymentPurpose | null>(null);
 
   useEffect(() => {
     if (!tx) return;
     let cancelled = false;
     pollPaymentStatus(API_URL, tx).then((result) => {
-      if (!cancelled) setStatus(result);
+      if (!cancelled) { setStatus(result.status); setPurpose(result.purpose); }
     });
     return () => { cancelled = true; };
   }, [tx]);
 
-  return status;
+  return { status, purpose };
 }
 
 function RetourInner() {
   const router = useRouter();
   const tx = useSearchParams().get('tx');
-  const status = useFedapayStatus(tx);
+  const { status, purpose } = useFedapayStatus(tx);
   const [countdown, setCountdown] = useState(4);
+  // Recharge investisseur : la session est déjà active (le paiement part du dashboard
+  // connecté), donc on revient directement dessus — pas de déconnexion déguisée en
+  // repassant par /login. Gold reste sur /login (peut venir d'une inscription sans
+  // session encore ouverte ; cf. note sécurité plus bas, comportement volontaire).
+  const isInvestorDeposit = purpose === 'investor_deposit';
 
-  // Aucune vérification admin requise — dès que FedaPay confirme, redirection
-  // automatique vers la connexion (pas d'auto-connexion : cf. note sécurité, un lien
-  // de retour de paiement partagé/intercepté ne doit jamais suffire à ouvrir le compte).
   useEffect(() => {
     if (status !== 'validated') return;
-    if (countdown <= 0) { router.push('/login'); return; }
+    if (countdown <= 0) { router.push(isInvestorDeposit ? '/dashboard' : '/login'); return; }
     const t = setTimeout(() => setCountdown((c) => c - 1), 1000);
     return () => clearTimeout(t);
-  }, [status, countdown, router]);
+  }, [status, countdown, router, isInvestorDeposit]);
 
   const content: Record<Status, { icon: JSX.Element; title: string; body: string }> = {
     checking: {
@@ -52,7 +55,9 @@ function RetourInner() {
     validated: {
       icon: <CheckCircle2 className="text-live" size={40} />,
       title: 'Paiement confirmé !',
-      body: `Ton accès Gold est actif immédiatement, aucune validation supplémentaire n'est nécessaire. Redirection vers la connexion dans ${countdown}s…`,
+      body: isInvestorDeposit
+        ? `Ton dépôt est enregistré et passe « sous analyse » pour ce cycle — retour à ton espace dans ${countdown}s…`
+        : `Ton accès Gold est actif immédiatement, aucune validation supplémentaire n'est nécessaire. Redirection vers la connexion dans ${countdown}s…`,
     },
     rejected: {
       icon: <XCircle className="text-red-500" size={40} />,
@@ -82,8 +87,8 @@ function RetourInner() {
         <p className="text-gray-400 text-sm mb-2">{c.body}</p>
         {tx && <p className="text-[11px] text-gray-600 mb-6">Réf. transaction : {tx}</p>}
         <div className="space-y-2">
-          <Link href="/login" className="block w-full gold-gradient text-black rounded-xl font-black tap-target leading-[48px]">
-            Me connecter à mon espace
+          <Link href={isInvestorDeposit ? '/dashboard' : '/login'} className="block w-full gold-gradient text-black rounded-xl font-black tap-target leading-[48px]">
+            {isInvestorDeposit ? 'Retourner à mon espace' : 'Me connecter à mon espace'}
           </Link>
           <Link href="/" className="block w-full glass rounded-xl font-bold tap-target leading-[48px] hover:bg-white/10">
             Retour à l’accueil

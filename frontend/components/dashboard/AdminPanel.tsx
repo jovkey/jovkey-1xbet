@@ -892,6 +892,7 @@ function TextsTab() {
   const [fcCta, setFcCta] = useState('');
   const [fcMsg, setFcMsg] = useState('');
   const [goldAnnounce, setGoldAnnounce] = useState('');
+  const [investorAnnounce, setInvestorAnnounce] = useState('');
   useEffect(() => {
     api('/cms/public').then((c: any) => {
       setPrice(String(c.settings?.gold_price?.amount ?? 5600));
@@ -902,6 +903,7 @@ function TextsTab() {
       setFcCta(c.settings?.free_coupon_cta?.text ?? '');
       setFcMsg(c.settings?.free_coupon_message?.text ?? '');
       setGoldAnnounce(c.settings?.gold_announcement?.text ?? '');
+      setInvestorAnnounce(c.settings?.investor_announcement?.text ?? '');
     }).catch(() => {});
   }, []);
   const saveSetting = async (key: string, value: unknown, label: string) => {
@@ -942,6 +944,19 @@ function TextsTab() {
           placeholder="Ex : Nouveaux coupons ajoutés chaque jour à 9h — reste connecté !"
           className="w-full glass rounded-xl px-4 py-3 mb-3 outline-none focus:border-gold" />
         <button onClick={() => saveSetting('gold_announcement', { text: goldAnnounce }, 'Annonce Gold')}
+          className="gold-gradient text-black rounded-xl font-black tap-target px-5">Enregistrer</button>
+      </div>
+
+      <div className="glass rounded-2xl p-6">
+        <h3 className="font-black mb-1">Annonce dans l&apos;espace Investisseur</h3>
+        <p className="text-gray-400 text-sm mb-3">
+          Bandeau affiché en haut du tableau de bord Investisseur — ex. besoin de capital ce
+          mois-ci, quota bientôt atteint… Laisse vide pour ne rien afficher.
+        </p>
+        <textarea value={investorAnnounce} onChange={(e) => setInvestorAnnounce(e.target.value)} rows={2}
+          placeholder="Ex : Il reste 4 places pour le cycle de ce mois — recharge avant le 15 !"
+          className="w-full glass rounded-xl px-4 py-3 mb-3 outline-none focus:border-gold" />
+        <button onClick={() => saveSetting('investor_announcement', { text: investorAnnounce }, 'Annonce Investisseur')}
           className="gold-gradient text-black rounded-xl font-black tap-target px-5">Enregistrer</button>
       </div>
 

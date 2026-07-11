@@ -1,11 +1,11 @@
 'use client';
 import { useEffect, useState } from 'react';
 import {
-  TrendingUp, Wallet, Star, Lock, Snowflake, Hourglass, Plus, ArrowDownToLine, X, Bell,
+  TrendingUp, Wallet, Star, Lock, Snowflake, Hourglass, Plus, ArrowDownToLine, X, Bell, Megaphone,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { showToast } from '@/lib/clipboard';
-import { PayMethodId } from '@/lib/config';
+import { PayMethodId, mediaUrl } from '@/lib/config';
 import PaymentMethodPicker from '@/components/PaymentMethodPicker';
 import { InvestorDashboardData } from '@/lib/types';
 import { useRealtime } from '@/lib/useRealtime';
@@ -102,9 +102,20 @@ export default function InvestorDashboard() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
 
+  const [announcement, setAnnouncement] = useState('');
+  const [slides, setSlides] = useState<{ id: string; imageUrl: string; caption?: string }[]>([]);
+
   const load = () =>
     api<InvestorDashboardData>('/investments/dashboard', { auth: true }).then(setData).catch(() => {});
   useEffect(() => { load(); }, []);
+  useEffect(() => {
+    api<{ slides: any[]; settings: Record<string, any> }>('/cms/public')
+      .then((c) => {
+        setAnnouncement(c.settings?.investor_announcement?.text || '');
+        setSlides((c.slides || []).filter((s) => s.linkTunnel === 'investor'));
+      })
+      .catch(() => {});
+  }, []);
   useRealtime((type) => {
     if (['payment.validated', 'payment.rejected', 'withdrawal.paid', 'withdrawal.rejected', 'balance.released'].includes(type)) {
       load();
@@ -150,6 +161,25 @@ export default function InvestorDashboard() {
   return (
     <div className="space-y-6">
       <NotificationsPanel />
+
+      {announcement && (
+        <div className="glass rounded-2xl p-4 flex items-center gap-3 border-l-4 border-gold">
+          <Megaphone className="text-gold shrink-0" size={20} />
+          <p className="text-sm text-gray-200">{announcement}</p>
+        </div>
+      )}
+
+      {slides.length > 0 && (
+        <div className="flex gap-3 overflow-x-auto pb-1">
+          {slides.map((s) => (
+            <div key={s.id} className="shrink-0 w-64 rounded-2xl overflow-hidden glass">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={mediaUrl(s.imageUrl)} alt={s.caption || ''} className="w-full h-32 object-cover" />
+              {s.caption && <p className="text-xs text-gray-300 p-2">{s.caption}</p>}
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Trois soldes étanches */}
       <div className="grid md:grid-cols-3 gap-4">
