@@ -10,6 +10,25 @@ export class PredictionsService {
     private realtime: RealtimeService,
   ) {}
 
+  /**
+   * Mémoire d'apprentissage du moteur (marché → précision/biais, historique, leçons).
+   * Endpoint interne uniquement (InternalKeyGuard) — jamais exposé publiquement, contrairement
+   * à /cms/public qui renvoie TOUS les CmsSetting sans filtrage (mauvais endroit pour ça).
+   */
+  async getEngineMemory() {
+    const row = await this.prisma.engineMemory.findUnique({ where: { id: 'singleton' } });
+    return row?.data ?? { market_accuracy: {}, bias: {}, lessons: [], history: [] };
+  }
+
+  async setEngineMemory(data: unknown) {
+    await this.prisma.engineMemory.upsert({
+      where: { id: 'singleton' },
+      update: { data: data as any },
+      create: { id: 'singleton', data: data as any },
+    });
+    return { ok: true };
+  }
+
   /** Une seule cote ~2 gratuite, validée, la plus récente. */
   freeOfTheDay() {
     return this.prisma.prediction.findFirst({

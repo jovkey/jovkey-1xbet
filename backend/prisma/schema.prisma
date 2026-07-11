@@ -323,3 +323,16 @@ model Notification {
   @@index([userId, read])
   @@map("notifications")
 }
+
+/// Mémoire d'apprentissage du moteur d'analyse Python (market_accuracy, biais appris,
+/// leçons, historique — cf. run.py). Stockée en base plutôt que sur le disque local du
+/// conteneur Python : sur un hébergeur comme Render, le disque N'EST PAS persistant et
+/// serait vidé à chaque redéploiement, effaçant tout l'apprentissage accumulé.
+/// Ligne UNIQUE (id fixe) — pas un historique, juste l'état courant.
+model EngineMemory {
+  id        String   @id @default("singleton")
+  data      Json
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("engine_memory")
+}

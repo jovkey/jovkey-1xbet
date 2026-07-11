@@ -689,14 +689,29 @@ def grade_pick(grading: dict, res: dict) -> bool:
 
 
 # ── Mémoire ────────────────────────────────────────────────────────────────
+# IMPORTANT : la BASE (backend) est la source de vérité durable. Le fichier local
+# (MEM_PATH) n'est qu'un cache/repli — sur un hébergeur comme Render, le disque d'un
+# conteneur n'est PAS persistant et est vidé à chaque redéploiement. Sans passage par
+# la base, tout l'apprentissage accumulé serait silencieusement perdu à chaque déploiement.
 def load_memory() -> dict:
+    try:
+        data = _get("/predictions/engine-memory")
+        if isinstance(data, dict) and data:
+            return data
+    except Exception as exc:  # noqa: BLE001
+        print(f"[memory] backend injoignable, repli sur le fichier local ({exc})")
     if MEM_PATH.exists():
         return json.loads(MEM_PATH.read_text(encoding="utf-8"))
     return {"market_accuracy": {}, "bias": {}, "lessons": [], "history": []}
 
 
 def save_memory(mem: dict):
+    # Copie locale d'abord (rapide, ne dépend de rien) puis persistance en base.
     MEM_PATH.write_text(json.dumps(mem, ensure_ascii=False, indent=2), encoding="utf-8")
+    try:
+        _post("/predictions/engine-memory", mem)
+    except Exception as exc:  # noqa: BLE001
+        print(f"[memory] échec de sauvegarde en base, gardé en local seulement ({exc})")
 
 
 def learn(mem: dict):

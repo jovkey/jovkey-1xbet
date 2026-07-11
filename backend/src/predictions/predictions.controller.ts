@@ -96,6 +96,22 @@ export class PredictionsController {
     return this.predictions.pendingGrading();
   }
 
+  /**
+   * Mémoire d'apprentissage du moteur (clé interne). Stockée en base pour survivre aux
+   * redéploiements du conteneur Python (disque non persistant sur Render/PaaS similaires).
+   */
+  @Get('engine-memory')
+  @UseGuards(InternalKeyGuard)
+  getEngineMemory() {
+    return this.predictions.getEngineMemory();
+  }
+
+  @Post('engine-memory')
+  @UseGuards(InternalKeyGuard)
+  setEngineMemory(@Body() data: unknown) {
+    return this.predictions.setEngineMemory(data);
+  }
+
   /** Notation d'une prédiction par le moteur (clé interne) : won / lost / void. */
   @Post(':id/result')
   @UseGuards(InternalKeyGuard)
