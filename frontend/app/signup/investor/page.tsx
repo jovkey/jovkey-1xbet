@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Gem, ArrowLeft } from 'lucide-react';
 import { api } from '@/lib/api';
+import Navbar from '@/components/Navbar';
 
 export default function InvestorSignupPage() {
   const router = useRouter();
@@ -34,7 +35,8 @@ export default function InvestorSignupPage() {
   };
 
   return (
-    <main className="min-h-screen flex items-center justify-center px-6 py-10">
+    <main className="min-h-screen flex items-center justify-center px-6 pt-24 pb-10">
+      <Navbar />
       <form onSubmit={submit} className="glass rounded-3xl p-8 w-full max-w-md">
         <Link href="/" className="text-xs text-gray-400 hover:text-gold flex items-center gap-1 mb-4">
           <ArrowLeft size={14} /> Retour

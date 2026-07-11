@@ -3,10 +3,12 @@ import Link from 'next/link';
 import { Crown, Gem, ArrowLeft, Zap } from 'lucide-react';
 import { openFunnel } from '@/lib/funnel';
 import { GOLD_PRICE_XOF, CURRENCY } from '@/lib/config';
+import Navbar from '@/components/Navbar';
 
 export default function SignupChooser() {
   return (
-    <main className="min-h-screen flex items-center justify-center px-6 py-10">
+    <main className="min-h-screen flex items-center justify-center px-6 pt-24 pb-10">
+      <Navbar />
       <div className="w-full max-w-3xl">
         <Link href="/" className="text-xs text-gray-400 hover:text-gold flex items-center gap-1 mb-6">
           <ArrowLeft size={14} /> Retour à l’accueil

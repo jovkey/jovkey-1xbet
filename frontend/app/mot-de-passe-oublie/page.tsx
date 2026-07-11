@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, Mail, KeyRound } from 'lucide-react';
 import { api } from '@/lib/api';
 import { showToast } from '@/lib/clipboard';
+import Navbar from '@/components/Navbar';
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
@@ -47,7 +48,8 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <main className="min-h-screen flex items-center justify-center px-6">
+    <main className="min-h-screen flex items-center justify-center px-6 pt-24 pb-6">
+      <Navbar />
       <form onSubmit={step === 'email' ? requestCode : reset} autoComplete="off" className="glass rounded-3xl p-8 w-full max-w-sm">
         <Link href="/login" className="text-xs text-gray-400 hover:text-gold flex items-center gap-1 mb-4">
           <ArrowLeft size={14} /> Retour à la connexion
