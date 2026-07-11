@@ -32,7 +32,7 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="min-h-screen flex items-center justify-center px-6 pt-24 pb-6">
+    <main className="min-h-dvh flex items-center justify-center px-6 pt-24 pb-6">
       <Navbar />
       <form onSubmit={submit} className="glass rounded-3xl p-8 w-full max-w-sm" autoComplete="off">
         <Link href="/" className="text-2xl font-black text-gold italic block mb-6 text-center">

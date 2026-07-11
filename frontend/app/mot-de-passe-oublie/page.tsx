@@ -48,7 +48,7 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <main className="min-h-screen flex items-center justify-center px-6 pt-24 pb-6">
+    <main className="min-h-dvh flex items-center justify-center px-6 pt-24 pb-6">
       <Navbar />
       <form onSubmit={step === 'email' ? requestCode : reset} autoComplete="off" className="glass rounded-3xl p-8 w-full max-w-sm">
         <Link href="/login" className="text-xs text-gray-400 hover:text-gold flex items-center gap-1 mb-4">

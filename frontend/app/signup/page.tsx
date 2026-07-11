@@ -7,7 +7,7 @@ import Navbar from '@/components/Navbar';
 
 export default function SignupChooser() {
   return (
-    <main className="min-h-screen flex items-center justify-center px-6 pt-24 pb-10">
+    <main className="min-h-dvh flex items-center justify-center px-6 pt-24 pb-10">
       <Navbar />
       <div className="w-full max-w-3xl">
         <Link href="/" className="text-xs text-gray-400 hover:text-gold flex items-center gap-1 mb-6">
