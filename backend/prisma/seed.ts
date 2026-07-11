@@ -24,6 +24,19 @@ const passwords = {
 };
 
 async function main() {
+  // Ce script insère des comptes ET DES PRONOSTICS DE DÉMONSTRATION (matchs fictifs,
+  // ex. "Lakers vs Suns") — jamais rattachés à un vrai match Sofascore. Exécuté par
+  // erreur une fois contre la base de prod (unique base partagée dev/prod de ce projet,
+  // cf. DATABASE_URL), ces faux pronostics sont restés visibles des mois dans le flux
+  // Gold/Investisseur payant avant d'être repérés. Même garde-fou que ALLOW_MOCK_PROVIDER
+  // côté moteur Python : on refuse de démarrer sans confirmation explicite.
+  if (process.env.ALLOW_DEV_SEED !== 'true') {
+    throw new Error(
+      'seed.ts refusé : ce script insère des pronostics FICTIFS (démo). ' +
+        'Sur une base de production, utilise `npm run seed:prod` à la place. ' +
+        'Pour du dev local uniquement, relance avec ALLOW_DEV_SEED=true explicite.',
+    );
+  }
   const cycle = currentCycle();
 
   // ── Comptes (connexion par EMAIL) ──────────────────────────
