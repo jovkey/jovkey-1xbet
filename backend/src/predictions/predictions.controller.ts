@@ -6,6 +6,7 @@ import { JwtAuthGuard } from '../common/jwt-auth.guard';
 import { RolesGuard } from '../common/roles.guard';
 import { Roles } from '../common/roles.decorator';
 import { InternalKeyGuard } from '../common/internal-key.guard';
+import { CurrentUser, AuthUser } from '../common/current-user.decorator';
 
 export class IngestPredictionDto {
   @ApiProperty() @IsString() sport!: string;
@@ -54,8 +55,8 @@ export class PredictionsController {
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('gold', 'investor')
-  feed() {
-    return this.predictions.privateFeed();
+  feed(@CurrentUser() user: AuthUser) {
+    return this.predictions.privateFeed(user.role as 'gold' | 'investor', user.subscriptionEndsAt);
   }
 
   // ── Admin : création / validation manuelle ─────────────────

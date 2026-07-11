@@ -1,17 +1,22 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
+import { randomInt } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeService } from '../realtime/realtime.service';
 import { PaymentsService } from '../payments/payments.service';
+import { EmailService } from '../email/email.service';
 import { LoginDto, SignupGoldDto, SignupInvestorDto } from './dto';
 
 /** Abonnement Gold : 5600 FCFA / mois (≈ 10 $). Montant par défaut. */
 export const GOLD_PRICE_XOF = 5600;
+const RESET_CODE_TTL_MS = 15 * 60 * 1000;
 
 @Injectable()
 export class AuthService {
@@ -20,6 +25,7 @@ export class AuthService {
     private jwt: JwtService,
     private realtime: RealtimeService,
     private paymentsService: PaymentsService,
+    private email: EmailService,
   ) {}
 
   /**
@@ -45,11 +51,9 @@ export class AuthService {
     if (user.accountStatus === 'suspended') {
       throw new UnauthorizedException('Compte suspendu. Contactez le support.');
     }
-    if (user.role === 'gold' && user.subscriptionEndsAt && user.subscriptionEndsAt < new Date()) {
-      throw new UnauthorizedException(
-        'Votre abonnement Gold est expiré. Renouvelez-le pour retrouver l’accès.',
-      );
-    }
+    // Gold expiré : on N'EMPÊCHE PLUS la connexion (contrairement à avant) — le membre
+    // se connecte normalement, mais son flux de pronostics reste verrouillé côté
+    // predictions.service.ts avec un message de renouvellement (cf. §12 du cahier).
     const ok = await bcrypt.compare(dto.password, user.passwordHash);
     if (!ok) throw new UnauthorizedException('Identifiants invalides');
 
@@ -145,5 +149,63 @@ export class AuthService {
       user: { id: user.id, email: user.email, role: user.role },
       message: 'Compte investisseur créé. Vous pouvez recharger votre capital.',
     };
+  }
+
+  /** Changement de mot de passe par un membre déjà connecté (exige l'ancien). */
+  async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user || !user.passwordHash) throw new NotFoundException('Compte introuvable');
+    const ok = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!ok) throw new UnauthorizedException('Mot de passe actuel incorrect.');
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await this.prisma.user.update({ where: { id: userId }, data: { passwordHash } });
+    return { ok: true, message: 'Mot de passe mis à jour.' };
+  }
+
+  /**
+   * Demande de réinitialisation : génère un code à 6 chiffres (15 min), l'envoie par email.
+   * Réponse générique dans tous les cas (compte existant ou non) pour ne pas révéler
+   * quels emails ont un compte.
+   */
+  async forgotPassword(email: string) {
+    const normalized = email.trim().toLowerCase();
+    const user = await this.prisma.user.findFirst({
+      where: { email: { equals: normalized, mode: 'insensitive' } },
+    });
+    if (user) {
+      const code = String(randomInt(100000, 1000000)); // 6 chiffres
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { passwordResetCode: code, passwordResetExpiresAt: new Date(Date.now() + RESET_CODE_TTL_MS) },
+      });
+      await this.email.sendPasswordResetCode(normalized, code);
+    }
+    return {
+      ok: true,
+      message: 'Si un compte existe avec cet email, un code de réinitialisation vient d’être envoyé.',
+    };
+  }
+
+  /** Vérifie le code reçu par email puis change le mot de passe. */
+  async resetPassword(email: string, code: string, newPassword: string) {
+    const normalized = email.trim().toLowerCase();
+    const user = await this.prisma.user.findFirst({
+      where: { email: { equals: normalized, mode: 'insensitive' } },
+    });
+    if (
+      !user ||
+      !user.passwordResetCode ||
+      user.passwordResetCode !== code ||
+      !user.passwordResetExpiresAt ||
+      user.passwordResetExpiresAt < new Date()
+    ) {
+      throw new BadRequestException('Code invalide ou expiré.');
+    }
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash, passwordResetCode: null, passwordResetExpiresAt: null },
+    });
+    return { ok: true, message: 'Mot de passe réinitialisé. Vous pouvez vous connecter.' };
   }
 }

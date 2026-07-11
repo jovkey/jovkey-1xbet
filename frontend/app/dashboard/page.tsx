@@ -2,16 +2,18 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { LogOut } from 'lucide-react';
+import { KeyRound, LogOut } from 'lucide-react';
 import { api, logout as apiLogout } from '@/lib/api';
 import { AuthUser } from '@/lib/types';
 import GoldDashboard from '@/components/dashboard/GoldDashboard';
 import InvestorDashboard from '@/components/dashboard/InvestorDashboard';
 import AdminPanel from '@/components/dashboard/AdminPanel';
+import ChangePasswordModal from '@/components/ChangePasswordModal';
 
 export default function DashboardPage() {
   const router = useRouter();
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
 
   useEffect(() => {
     // Le cookie httpOnly (s'il existe) est envoyé automatiquement : on tente directement
@@ -40,11 +42,16 @@ export default function DashboardPage() {
           <span className="text-xs uppercase tracking-widest text-gray-400">
             {user.role} · {user.email}
           </span>
+          <button onClick={() => setShowPasswordModal(true)} className="glass rounded-full p-2 hover:bg-white/10" aria-label="Changer mon mot de passe">
+            <KeyRound size={18} />
+          </button>
           <button onClick={logout} className="glass rounded-full p-2 hover:bg-white/10" aria-label="Déconnexion">
             <LogOut size={18} />
           </button>
         </div>
       </header>
+
+      {showPasswordModal && <ChangePasswordModal onClose={() => setShowPasswordModal(false)} />}
 
       {user.role === 'investor' ? <InvestorDashboard /> : <GoldDashboard />}
     </main>

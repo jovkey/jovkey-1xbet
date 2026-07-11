@@ -5,11 +5,13 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './jwt.strategy';
 import { PaymentsModule } from '../payments/payments.module';
+import { EmailModule } from '../email/email.module';
 
 @Module({
   imports: [
     PassportModule,
     PaymentsModule,
+    EmailModule,
     JwtModule.register({
       // Pas de fallback faible : JwtStrategy fait déjà échouer le démarrage si absent,
       // ici on garde le typage strict (process.env.JWT_SECRET peut être undefined en théorie).

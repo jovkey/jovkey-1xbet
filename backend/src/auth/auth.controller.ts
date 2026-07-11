@@ -3,7 +3,7 @@ import { Throttle } from '@nestjs/throttler';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { AuthService } from './auth.service';
-import { LoginDto, SignupGoldDto, SignupInvestorDto } from './dto';
+import { ChangePasswordDto, ForgotPasswordDto, LoginDto, ResetPasswordDto, SignupGoldDto, SignupInvestorDto } from './dto';
 import { JwtAuthGuard } from '../common/jwt-auth.guard';
 import { CurrentUser, AuthUser } from '../common/current-user.decorator';
 
@@ -90,5 +90,27 @@ export class AuthController {
   logout(@Res({ passthrough: true }) res: Response) {
     res.clearCookie(AUTH_COOKIE, this.cookieOptions());
     return { ok: true };
+  }
+
+  /** Changement de mot de passe depuis l'espace membre (exige le mot de passe actuel). */
+  @Post('change-password')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  changePassword(@CurrentUser() user: AuthUser, @Body() dto: ChangePasswordDto) {
+    return this.auth.changePassword(user.id, dto.currentPassword, dto.newPassword);
+  }
+
+  /** Mot de passe oublié : envoie un code à 6 chiffres par email. Anti-spam : 3/min. */
+  @Throttle({ default: { limit: 3, ttl: 60_000 } })
+  @Post('forgot-password')
+  forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.auth.forgotPassword(dto.email);
+  }
+
+  /** Vérifie le code reçu par email et fixe le nouveau mot de passe. Anti brute-force : 5/min. */
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Post('reset-password')
+  resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.auth.resetPassword(dto.email, dto.code, dto.newPassword);
   }
 }

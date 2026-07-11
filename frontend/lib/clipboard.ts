@@ -12,15 +12,23 @@ export function showToast(message: string) {
 }
 
 export async function copyText(value: string, message = 'Copié !') {
+  // `finally` garantit l'affichage du toast même si writeText ET le repli
+  // execCommand échouent tous les deux (permission refusée, navigateur restrictif…) —
+  // sans ça, une erreur dans le repli faisait disparaître toute notification.
   try {
-    await navigator.clipboard.writeText(value);
-  } catch {
-    const el = document.createElement('textarea');
-    el.value = value;
-    document.body.appendChild(el);
-    el.select();
-    document.execCommand('copy');
-    document.body.removeChild(el);
+    try {
+      await navigator.clipboard.writeText(value);
+    } catch {
+      const el = document.createElement('textarea');
+      el.value = value;
+      el.style.position = 'fixed';
+      el.style.opacity = '0';
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand('copy');
+      document.body.removeChild(el);
+    }
+  } finally {
+    showToast(message);
   }
-  showToast(message);
 }

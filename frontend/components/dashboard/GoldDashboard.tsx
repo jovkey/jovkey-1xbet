@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { Copy, Flame, Trophy, Crown, Sparkles, ShieldCheck } from 'lucide-react';
+import { Copy, Flame, Trophy, Crown, Sparkles, ShieldCheck, Lock, Zap } from 'lucide-react';
 import { api } from '@/lib/api';
 import { copyText } from '@/lib/clipboard';
 import { useRealtime } from '@/lib/useRealtime';
@@ -15,10 +15,26 @@ const sportLabel: Record<string, string> = {
 
 export default function GoldDashboard() {
   const [feed, setFeed] = useState<Prediction[]>([]);
+  const [locked, setLocked] = useState(false);
+  const [lockMessage, setLockMessage] = useState('');
+  const [renewing, setRenewing] = useState(false);
 
-  const load = () => api<Prediction[]>('/predictions/feed', { auth: true }).then(setFeed).catch(() => {});
+  const load = () =>
+    api<{ locked: boolean; message?: string; items: Prediction[] }>('/predictions/feed', { auth: true })
+      .then((res) => { setFeed(res.items); setLocked(res.locked); setLockMessage(res.message || ''); })
+      .catch(() => {});
   useEffect(() => { load(); }, []);
   useRealtime((type) => { if (type === 'prediction.new' || type === 'message') load(); });
+
+  const renew = async () => {
+    setRenewing(true);
+    try {
+      const res = await api<{ paymentUrl?: string }>('/payments/fedapay/renew-gold', { method: 'POST', auth: true });
+      if (res.paymentUrl) window.location.href = res.paymentUrl;
+    } catch {
+      setRenewing(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -26,7 +42,7 @@ export default function GoldDashboard() {
       <div className="vip-card rounded-3xl p-6 flex items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 text-gold font-black mb-1">
-            <Crown size={20} /> Pack Gold Elite — actif
+            <Crown size={20} /> Pack Gold Elite {locked ? '— à renouveler' : '— actif'}
           </div>
           <p className="text-gray-400 text-sm flex items-center gap-2">
             <ShieldCheck size={14} className="text-live" /> Espace 100% sans publicité · pronostics générés par l’IA
@@ -35,6 +51,21 @@ export default function GoldDashboard() {
         <Sparkles className="text-gold shrink-0 hidden md:block" size={36} />
       </div>
 
+      {locked && (
+        <div className="glass rounded-3xl p-6 border-2 border-gold/50 bg-gold/5 text-center">
+          <Lock className="text-gold mx-auto mb-3" size={32} />
+          <h3 className="text-xl font-black mb-2">Ton abonnement est arrivé à échéance</h3>
+          <p className="text-gray-300 text-sm mb-5 max-w-md mx-auto">{lockMessage}</p>
+          <button
+            onClick={renew}
+            disabled={renewing}
+            className="gold-gradient text-black px-8 py-4 rounded-xl font-black tap-target inline-flex items-center gap-2 hover:scale-[1.03] transition disabled:opacity-60"
+          >
+            <Zap size={18} /> {renewing ? 'Redirection…' : 'Renouveler maintenant — 50% de réduction'}
+          </button>
+        </div>
+      )}
+
       <div className="flex items-center gap-2">
         <Flame className="text-gold" />
         <h2 className="text-2xl font-black">Flux privé d’opportunités</h2>
@@ -42,7 +73,7 @@ export default function GoldDashboard() {
 
       <div className="grid md:grid-cols-2 gap-5">
         {feed.map((p) => (
-          <div key={p.id} className="glass rounded-2xl p-5 border-l-4 border-gold">
+          <div key={p.id} className="glass rounded-2xl p-5 border-l-4 border-gold relative overflow-hidden">
             <div className="flex justify-between items-start mb-2">
               <span className="text-[10px] uppercase tracking-widest text-gray-400">
                 {sportLabel[p.sport] || p.sport} · {p.market}
@@ -55,12 +86,18 @@ export default function GoldDashboard() {
             <div className="text-gray-400 text-sm mb-3">{p.selection}</div>
             <div className="flex items-center justify-between">
               <span className="text-2xl font-black text-gold">{p.odds.toFixed(2)}</span>
-              <button
-                onClick={() => copyText(p.couponCode, 'Code coupon 1xBet copié !')}
-                className="gold-gradient text-black px-5 rounded-xl font-black tap-target flex items-center gap-2 hover:scale-[1.03] transition"
-              >
-                <Copy size={16} /> Copier le code
-              </button>
+              {locked ? (
+                <button onClick={renew} className="glass px-5 rounded-xl font-black tap-target flex items-center gap-2 border border-gold/40 text-gold">
+                  <Lock size={16} /> Renouveler pour voir
+                </button>
+              ) : (
+                <button
+                  onClick={() => copyText(p.couponCode, 'Code coupon 1xBet copié !')}
+                  className="gold-gradient text-black px-5 rounded-xl font-black tap-target flex items-center gap-2 hover:scale-[1.03] transition"
+                >
+                  <Copy size={16} /> Copier le code
+                </button>
+              )}
             </div>
           </div>
         ))}

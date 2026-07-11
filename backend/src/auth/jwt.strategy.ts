@@ -32,6 +32,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     if (!user || user.statusFlash === 'rejected') {
       throw new UnauthorizedException('Compte introuvable ou révoqué');
     }
-    return { id: user.id, email: user.email, id1xbet: user.id1xbet, role: user.role };
+    return {
+      id: user.id,
+      email: user.email,
+      id1xbet: user.id1xbet,
+      role: user.role,
+      subscriptionEndsAt: user.subscriptionEndsAt,
+    };
   }
 }

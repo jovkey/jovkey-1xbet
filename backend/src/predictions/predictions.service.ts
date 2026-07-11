@@ -18,12 +18,27 @@ export class PredictionsService {
     });
   }
 
-  privateFeed() {
-    return this.prisma.prediction.findMany({
+  /**
+   * Flux privé. Un Gold dont l'abonnement est expiré reste connecté (§12) mais son
+   * flux est VERROUILLÉ : on renvoie les pronostics SANS couponCode (juste le teasing —
+   * sport, cote, fiabilité) plus un message de renouvellement convaincant, plutôt que
+   * de bloquer purement et simplement l'accès à la page.
+   */
+  async privateFeed(role: 'gold' | 'investor', subscriptionEndsAt: Date | null) {
+    const items = await this.prisma.prediction.findMany({
       where: { tier: { in: ['gold', 'investor'] }, isValidated: true },
       orderBy: { createdAt: 'desc' },
       take: 50,
     });
+    const locked = role === 'gold' && !!subscriptionEndsAt && subscriptionEndsAt < new Date();
+    if (!locked) return { locked: false, items };
+    return {
+      locked: true,
+      message:
+        "Ton abonnement Gold est arrivé à échéance. D'excellentes cotes précises sont disponibles " +
+        "aujourd'hui — renouvelle maintenant pour débloquer immédiatement tes coupons et ne rien manquer.",
+      items: items.map((p) => ({ ...p, couponCode: '' })),
+    };
   }
 
   pending() {

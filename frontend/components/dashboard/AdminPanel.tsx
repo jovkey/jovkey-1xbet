@@ -542,6 +542,13 @@ function UsersTab({ superadmin }: { superadmin: boolean }) {
   const setRole = async (id: string, role: string) => {
     await api(`/users/${id}/role`, { method: 'PATCH', auth: true, body: { role } }); load();
   };
+  const removeUser = async (u: any) => {
+    if (!confirm(`Supprimer définitivement ${u.email || u.id1xbet} ? Cette action est irréversible.`)) return;
+    try {
+      await api(`/users/${u.id}`, { method: 'DELETE', auth: true });
+      showToast('Membre supprimé'); load();
+    } catch (e: any) { showToast(e.message || 'Échec de la suppression'); }
+  };
   const release = async (u: any) => {
     const amount = Number(prompt(`Montant gelé à libérer (max ${Math.round(Number(u.balanceFrozen))}) :`) || '0');
     if (!amount) return;
@@ -570,9 +577,14 @@ function UsersTab({ superadmin }: { superadmin: boolean }) {
               <div className="flex items-center gap-3">
                 <span className="text-gray-400">{u.reviewsWritten} avis</span>
                 {superadmin ? (
-                  <select value={u.role} onChange={(e) => setRole(u.id, e.target.value)} className="glass rounded-lg px-2 py-1 bg-night">
-                    {['gold', 'investor', 'admin', 'superadmin'].map((r) => <option key={r} value={r}>{r}</option>)}
-                  </select>
+                  <>
+                    <select value={u.role} onChange={(e) => setRole(u.id, e.target.value)} className="glass rounded-lg px-2 py-1 bg-night">
+                      {['gold', 'investor', 'admin', 'superadmin'].map((r) => <option key={r} value={r}>{r}</option>)}
+                    </select>
+                    <button onClick={() => removeUser(u)} className="text-red-400 hover:text-red-300 text-xs border border-red-400/30 rounded-lg px-2 py-1">
+                      Supprimer
+                    </button>
+                  </>
                 ) : (
                   <span className="uppercase text-xs text-gold">{u.role}</span>
                 )}

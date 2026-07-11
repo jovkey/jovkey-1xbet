@@ -27,10 +27,22 @@ export class PaymentsService {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   }
 
-  private async goldPrice(): Promise<number> {
+  private async baseGoldPrice(): Promise<number> {
     const s = await this.prisma.cmsSetting.findUnique({ where: { key: 'gold_price' } });
     const amount = Number((s?.value as { amount?: number } | null)?.amount);
     return amount > 0 ? amount : GOLD_DEFAULT_XOF;
+  }
+
+  /**
+   * Prix Gold pour CE membre : moitié prix pour un ANCIEN abonné qui renouvelle
+   * (subscriptionEndsAt déjà défini = a déjà eu au moins un cycle payé), plein tarif
+   * pour un tout premier abonnement — incitation automatique au réengagement (§12).
+   */
+  private async goldPriceFor(userId: string): Promise<number> {
+    const base = await this.baseGoldPrice();
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { subscriptionEndsAt: true } });
+    const isRenewal = !!user?.subscriptionEndsAt;
+    return isRenewal ? Math.round(base / 2) : base;
   }
 
   /**
@@ -43,7 +55,7 @@ export class PaymentsService {
     amount?: number,
     customer?: { name?: string; email?: string; phone?: string },
   ) {
-    const value = purpose === 'gold_subscription' ? await this.goldPrice() : Math.max(1, Number(amount) || 0);
+    const value = purpose === 'gold_subscription' ? await this.goldPriceFor(userId) : Math.max(1, Number(amount) || 0);
     if (purpose === 'investor_deposit' && value < 1) {
       throw new BadRequestException('Montant de recharge invalide.');
     }

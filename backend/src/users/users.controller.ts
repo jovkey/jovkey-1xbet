@@ -2,7 +2,9 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
+  NotFoundException,
   Param,
   Patch,
   UseGuards,
@@ -62,5 +64,22 @@ export class UsersController {
       throw new BadRequestException('Vous ne pouvez pas modifier votre propre rôle.');
     }
     return this.prisma.user.update({ where: { id }, data: { role: body.role } });
+  }
+
+  /**
+   * Suppression définitive d'un membre, réservée au superadmin. Le schéma cascade
+   * (investissements, avis, paiements, retraits, notifications) est nettoyé
+   * automatiquement par la base — action irréversible.
+   */
+  @Delete(':id')
+  @Roles('superadmin')
+  async remove(@Param('id') id: string, @CurrentUser() me: AuthUser) {
+    if (id === me.id) {
+      throw new BadRequestException('Vous ne pouvez pas supprimer votre propre compte.');
+    }
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) throw new NotFoundException('Membre introuvable');
+    await this.prisma.user.delete({ where: { id } });
+    return { ok: true };
   }
 }

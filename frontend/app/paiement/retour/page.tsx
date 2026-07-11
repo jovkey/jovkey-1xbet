@@ -1,7 +1,7 @@
 'use client';
 import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { CheckCircle2, Loader2, XCircle } from 'lucide-react';
 import { API_URL } from '@/lib/config';
 import { pollPaymentStatus } from '@/lib/fedapayCheckout';
@@ -28,8 +28,20 @@ function useFedapayStatus(tx: string | null) {
 }
 
 function RetourInner() {
+  const router = useRouter();
   const tx = useSearchParams().get('tx');
   const status = useFedapayStatus(tx);
+  const [countdown, setCountdown] = useState(4);
+
+  // Aucune vérification admin requise — dès que FedaPay confirme, redirection
+  // automatique vers la connexion (pas d'auto-connexion : cf. note sécurité, un lien
+  // de retour de paiement partagé/intercepté ne doit jamais suffire à ouvrir le compte).
+  useEffect(() => {
+    if (status !== 'validated') return;
+    if (countdown <= 0) { router.push('/login'); return; }
+    const t = setTimeout(() => setCountdown((c) => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [status, countdown, router]);
 
   const content: Record<Status, { icon: JSX.Element; title: string; body: string }> = {
     checking: {
@@ -40,7 +52,7 @@ function RetourInner() {
     validated: {
       icon: <CheckCircle2 className="text-live" size={40} />,
       title: 'Paiement confirmé !',
-      body: 'Ton accès est actif. Connecte-toi pour retrouver ton espace.',
+      body: `Ton accès Gold est actif immédiatement, aucune validation supplémentaire n'est nécessaire. Redirection vers la connexion dans ${countdown}s…`,
     },
     rejected: {
       icon: <XCircle className="text-red-500" size={40} />,

@@ -31,6 +31,21 @@ export class PaymentsController {
   }
 
   /**
+   * Gold : renouvellement depuis le dashboard (abonnement expiré ou non — sert aussi
+   * de renouvellement anticipé). Prix à moitié tarif calculé automatiquement pour un
+   * ancien abonné (§12), aucune action admin requise.
+   */
+  @Post('fedapay/renew-gold')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('gold')
+  renewGold(@CurrentUser() user: AuthUser) {
+    return this.payments.initFedapay(user.id, 'gold_subscription', undefined, {
+      email: user.email ?? undefined,
+    });
+  }
+
+  /**
    * Webhook FedaPay (serveur→serveur) : vérifie la signature puis confirme le paiement.
    * `main.ts` active `rawBody: true` afin que `req.rawBody` contienne le corps brut
    * nécessaire au calcul HMAC (le body JSON parsé ne suffit pas, la signature porte

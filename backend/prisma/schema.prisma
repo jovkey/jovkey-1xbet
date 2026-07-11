@@ -90,6 +90,10 @@ model User {
   communityLinkSent   Boolean      @default(false) @map("community_link_sent")
   eligibleForReinvest Boolean      @default(false) @map("eligible_for_reinvest")
 
+  // Mot de passe oublié : code à 6 chiffres envoyé par email, expire vite (15 min).
+  passwordResetCode      String?   @map("password_reset_code")
+  passwordResetExpiresAt DateTime? @map("password_reset_expires_at")
+
   // §3 — Trois soldes étanches pour l'investisseur (validation admin avant retrait).
   balanceWithdrawable  Decimal @default(0) @db.Decimal(12, 2) @map("balance_withdrawable")  // retirable
   balanceUnderAnalysis Decimal @default(0) @db.Decimal(12, 2) @map("balance_under_analysis") // sous analyse

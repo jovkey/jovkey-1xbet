@@ -5,6 +5,7 @@ export interface AuthUser {
   email: string | null;
   id1xbet: string | null;
   role: 'gold' | 'investor' | 'admin' | 'superadmin';
+  subscriptionEndsAt: Date | null;
 }
 
 export const CurrentUser = createParamDecorator(

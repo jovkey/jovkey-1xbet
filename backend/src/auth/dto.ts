@@ -81,6 +81,44 @@ export class RechargeDto {
   reference!: string;
 }
 
+/** Changement de mot de passe (membre connecté). */
+export class ChangePasswordDto {
+  @ApiProperty({ example: 'monAncienMotDePasse' })
+  @IsString()
+  @MinLength(6)
+  currentPassword!: string;
+
+  @ApiProperty({ example: 'monNouveauMotDePasse' })
+  @IsString()
+  @MinLength(6)
+  newPassword!: string;
+}
+
+/** Demande de code de réinitialisation par email. */
+export class ForgotPasswordDto {
+  @ApiProperty({ example: 'client@email.com' })
+  @IsEmail()
+  email!: string;
+}
+
+/** Vérification du code + nouveau mot de passe. */
+export class ResetPasswordDto {
+  @ApiProperty({ example: 'client@email.com' })
+  @IsEmail()
+  email!: string;
+
+  @ApiProperty({ example: '482913' })
+  @IsString()
+  @MinLength(6)
+  @MaxLength(6)
+  code!: string;
+
+  @ApiProperty({ example: 'monNouveauMotDePasse' })
+  @IsString()
+  @MinLength(6)
+  newPassword!: string;
+}
+
 /** Demande de retrait investisseur. */
 export class WithdrawalDto {
   @ApiProperty({ example: 25000 })

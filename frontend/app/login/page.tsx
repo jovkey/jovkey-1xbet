@@ -32,7 +32,7 @@ export default function LoginPage() {
 
   return (
     <main className="min-h-screen flex items-center justify-center px-6">
-      <form onSubmit={submit} className="glass rounded-3xl p-8 w-full max-w-sm">
+      <form onSubmit={submit} className="glass rounded-3xl p-8 w-full max-w-sm" autoComplete="off">
         <Link href="/" className="text-2xl font-black text-gold italic block mb-6 text-center">
           JOVKEY-1XBET
         </Link>
@@ -46,6 +46,7 @@ export default function LoginPage() {
           onChange={(e) => setEmail(e.target.value)}
           autoCapitalize="none"
           autoCorrect="off"
+          autoComplete="off"
           spellCheck={false}
           className="w-full glass rounded-xl px-4 mb-4 tap-target outline-none focus:border-gold"
           placeholder="vous@email.com"
@@ -55,9 +56,15 @@ export default function LoginPage() {
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
+          autoComplete="new-password"
           className="w-full glass rounded-xl px-4 mb-4 tap-target outline-none focus:border-gold"
           placeholder="••••••••"
         />
+        <div className="text-right -mt-2 mb-4">
+          <Link href="/mot-de-passe-oublie" className="text-[11px] text-gray-500 hover:text-gold underline">
+            Mot de passe oublié ?
+          </Link>
+        </div>
         {error && <p className="text-red-400 text-sm mb-3">{error}</p>}
         <button
           disabled={loading}
