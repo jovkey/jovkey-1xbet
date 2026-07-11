@@ -29,26 +29,45 @@ services:
       postgres:
         condition: service_healthy
     environment:
+      NODE_ENV: production
       DATABASE_URL: ${DATABASE_URL}
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
       PORT: ${PORT}
+      # Domaine(s) EXACTS du frontend déployé (ex. https://jovkey.example.com), séparés
+      # par des virgules si plusieurs. OBLIGATOIRE en production : sans ça, le backend
+      # refuse de démarrer (protection CORS/cookies ajoutée avec l'auth par cookie httpOnly).
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN}
+      # URLs publiques réelles (webhook FedaPay, page de retour paiement) :
+      API_PUBLIC_URL: ${API_PUBLIC_URL}
+      FRONTEND_URL: ${FRONTEND_URL}
       ADMIN_SECRET_ROUTE: ${ADMIN_SECRET_ROUTE}
+      SUPERADMIN_EMAIL: ${SUPERADMIN_EMAIL}
       SUPERADMIN_BOOTSTRAP_PASSWORD: ${SUPERADMIN_BOOTSTRAP_PASSWORD}
       ANALYSIS_API_KEY: ${ANALYSIS_API_KEY}
+      FEDAPAY_ENVIRONMENT: ${FEDAPAY_ENVIRONMENT}
+      FEDAPAY_SECRET_KEY: ${FEDAPAY_SECRET_KEY}
+      FEDAPAY_WEBHOOK_SECRET: ${FEDAPAY_WEBHOOK_SECRET}
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
     ports:
       - "4000:4000"
-    command: sh -c "npx prisma db push --accept-data-loss && npm run seed && node dist/main.js"
+    # seed:prod (PAS seed) : ne crée que le superadmin, jamais de comptes/avis de démo
+    # sur une vraie base de production. Idempotent, donc sûr à chaque redémarrage.
+    command: sh -c "npx prisma db push --accept-data-loss && npm run seed:prod && node dist/main.js"
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        # Figées dans le bundle JS AU BUILD (voir frontend/Dockerfile) — pas en
+        # `environment:` runtime, qui n'aurait aucun effet sur le code déjà compilé.
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+        NEXT_PUBLIC_PROMO_CODE: ${NEXT_PUBLIC_PROMO_CODE}
     restart: unless-stopped
     depends_on:
       - backend
-    environment:
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
-      NEXT_PUBLIC_ADMIN_ROUTE: ${NEXT_PUBLIC_ADMIN_ROUTE}
-      NEXT_PUBLIC_PROMO_CODE: ${NEXT_PUBLIC_PROMO_CODE}
     ports:
       - "3000:3000"
 
@@ -56,15 +75,18 @@ services:
     build: ./analysis-engine
     restart: unless-stopped
     depends_on:
-      - redis
       - backend
     environment:
-      REDIS_URL: ${REDIS_URL}
+      PORT: 8000
       ANALYSIS_API_KEY: ${ANALYSIS_API_KEY}
       BACKEND_INTERNAL_URL: ${BACKEND_INTERNAL_URL}
+      SPORTS_PROVIDER: ${SPORTS_PROVIDER}
+      RAPIDAPI_KEY: ${RAPIDAPI_KEY}
+      RAPIDAPI_HOST: ${RAPIDAPI_HOST}
     ports:
       - "8000:8000"
-    command: sh -c "celery -A app.worker.celery_app worker --beat --loglevel=info & uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    # Utilise l'image telle quelle (CMD par défaut = server.py, cf. analysis-engine/Dockerfile) :
+    # health check HTTP + planification interne à 00:00/06:00 UTC via run.py (vraies données).
 
 volumes:
   pgdata:

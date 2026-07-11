@@ -29,8 +29,11 @@ export class FedapayService {
       ? 'https://api.fedapay.com/v1'
       : 'https://sandbox-api.fedapay.com/v1';
   }
-  private get apiPublicUrl() { return process.env.API_PUBLIC_URL || 'http://localhost:4000'; }
-  private get frontendUrl() { return process.env.FRONTEND_URL || 'http://localhost:3000'; }
+  // .trim() + retrait du slash final : une variable collée dans le dashboard Render
+  // embarque parfois un espace/saut de ligne invisible en fin de valeur, ce qui casse
+  // silencieusement l'URL construite (callback_url, notifyUrl…).
+  private get apiPublicUrl() { return (process.env.API_PUBLIC_URL || 'http://localhost:4000').trim().replace(/\/+$/, ''); }
+  private get frontendUrl() { return (process.env.FRONTEND_URL || 'http://localhost:3000').trim().replace(/\/+$/, ''); }
 
   /** 'production' = appels réels à l'API FedaPay (sandbox ou live selon FEDAPAY_ENVIRONMENT). */
   get mode(): 'production' | 'simulation' {

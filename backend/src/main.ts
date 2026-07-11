@@ -24,7 +24,12 @@ async function bootstrap() {
   // NE DOIT JAMAIS être réfléchie en wildcard (sinon n'importe quel site pourrait rejouer les
   // cookies de session). FRONTEND_ORIGIN est obligatoire en production ; en dev on retombe sur
   // localhost:3000 uniquement (jamais `true`).
-  const origins = process.env.FRONTEND_ORIGIN?.split(',').map((o) => o.trim()).filter(Boolean);
+  // Retrait du slash final : le header Origin envoyé par le navigateur n'en a jamais
+  // (ex. "https://site.vercel.app"), donc une valeur collée avec un "/" en trop ("...app/")
+  // ne matcherait jamais → CORS rejetterait silencieusement toutes les requêtes credentialed.
+  const origins = process.env.FRONTEND_ORIGIN?.split(',')
+    .map((o) => o.trim().replace(/\/+$/, ''))
+    .filter(Boolean);
   if (process.env.NODE_ENV === 'production' && (!origins || origins.length === 0)) {
     throw new Error('FRONTEND_ORIGIN manquant : obligatoire en production (cookies de session).');
   }

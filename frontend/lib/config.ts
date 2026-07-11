@@ -1,5 +1,16 @@
-export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-export const PROMO_CODE = process.env.NEXT_PUBLIC_PROMO_CODE || 'JOVKEY';
+/**
+ * .trim() + retrait du slash final : une variable d'environnement collée dans un
+ * dashboard (Vercel, Render…) embarque parfois un espace ou un saut de ligne invisible
+ * en fin de valeur. Comme NEXT_PUBLIC_* est figée dans le bundle au build, ce genre de
+ * caractère invisible casse silencieusement l'URL réelle appelée par fetch() (DNS
+ * introuvable) sans que rien ne le laisse voir dans les DevTools au premier coup d'œil.
+ */
+function cleanUrl(value: string | undefined, fallback: string): string {
+  return (value || fallback).trim().replace(/\/+$/, '');
+}
+
+export const API_URL = cleanUrl(process.env.NEXT_PUBLIC_API_URL, 'http://localhost:4000');
+export const PROMO_CODE = (process.env.NEXT_PUBLIC_PROMO_CODE || 'JOVKEY').trim();
 
 /** Préfixe l'URL relative d'un média (/uploads/...) par l'hôte de l'API. */
 export const mediaUrl = (url: string) => (url?.startsWith('/') ? `${API_URL}${url}` : url);

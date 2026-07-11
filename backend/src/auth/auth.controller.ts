@@ -26,14 +26,30 @@ export class AuthController {
   /**
    * Pose le JWT dans un cookie httpOnly (inaccessible à un script XSS côté navigateur) —
    * il ne transite plus jamais par le localStorage ni le corps de réponse JSON.
+   *
+   * SameSite : en prod, le frontend (Vercel) et le backend (Render) sont sur des
+   * domaines DIFFÉRENTS — une requête fetch de l'un vers l'autre est donc « cross-site »
+   * au sens du navigateur. `SameSite=Lax` bloque l'envoi du cookie dans ce cas (il ne
+   * marche que pour un site unique ou des sous-domaines d'un même domaine racine) :
+   * la connexion semblerait réussir mais le client resterait « déconnecté » juste après.
+   * `SameSite=None` lève cette restriction, mais EXIGE `Secure` (HTTPS) — Vercel/Render
+   * sont en HTTPS par défaut, donc sûr en prod. En dev (localhost, HTTP), on reste sur
+   * `Lax` : `None` sans HTTPS serait carrément rejeté par le navigateur.
    */
+  private cookieOptions() {
+    const isProd = process.env.NODE_ENV === 'production';
+    return {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: (isProd ? 'none' : 'lax') as 'none' | 'lax',
+      path: '/',
+    };
+  }
+
   private setAuthCookie(res: Response, token: string) {
     res.cookie(AUTH_COOKIE, token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      ...this.cookieOptions(),
       maxAge: parseExpiryMs(process.env.JWT_EXPIRES_IN || '7d'),
-      path: '/',
     });
   }
 
@@ -72,7 +88,7 @@ export class AuthController {
   /** Déconnexion : efface le cookie de session côté navigateur. */
   @Post('logout')
   logout(@Res({ passthrough: true }) res: Response) {
-    res.clearCookie(AUTH_COOKIE, { path: '/' });
+    res.clearCookie(AUTH_COOKIE, this.cookieOptions());
     return { ok: true };
   }
 }
