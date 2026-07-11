@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Header, HttpCode, Param, Post, Req, UnauthorizedException, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiProperty, ApiTags } from '@nestjs/swagger';
+import { IsString } from 'class-validator';
 import type { Request } from 'express';
 import { PaymentsService } from './payments.service';
 import { FedapayService } from './fedapay.service';
@@ -8,6 +9,10 @@ import { RolesGuard } from '../common/roles.guard';
 import { Roles } from '../common/roles.decorator';
 import { CurrentUser, AuthUser } from '../common/current-user.decorator';
 import { RechargeDto } from '../auth/dto';
+
+export class RenewByTokenDto {
+  @ApiProperty() @IsString() token!: string;
+}
 
 @ApiTags('payments')
 @Controller('payments')
@@ -43,6 +48,16 @@ export class PaymentsController {
     return this.payments.initFedapay(user.id, 'gold_subscription', undefined, {
       email: user.email ?? undefined,
     });
+  }
+
+  /**
+   * Renouvellement "1 clic" depuis le lien reçu par email de rappel (§ pas de connexion
+   * requise — token à usage unique, courte durée de vie). Public par nécessité : c'est
+   * ce que le client clique directement depuis sa boîte mail.
+   */
+  @Post('fedapay/renew-by-token')
+  renewByToken(@Body() dto: RenewByTokenDto) {
+    return this.payments.renewGoldByToken(dto.token);
   }
 
   /**

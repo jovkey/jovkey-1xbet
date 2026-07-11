@@ -32,6 +32,10 @@ export class FedapayService {
   // .trim() + retrait du slash final : une variable collée dans le dashboard Render
   // embarque parfois un espace/saut de ligne invisible en fin de valeur, ce qui casse
   // silencieusement l'URL construite (callback_url, notifyUrl…).
+  // Pays du compte marchand FedaPay (2 lettres ISO, ex. "ci" pour Côte d'Ivoire) — doit
+  // matcher le pays réel du compte, sinon FedaPay rejette la transaction (client/compte
+  // incohérents). Configurable car un même déploiement peut un jour servir un autre pays.
+  private get customerCountry() { return (process.env.FEDAPAY_CUSTOMER_COUNTRY || 'ci').trim().toLowerCase(); }
   private get apiPublicUrl() { return (process.env.API_PUBLIC_URL || 'http://localhost:4000').trim().replace(/\/+$/, ''); }
   private get frontendUrl() { return (process.env.FRONTEND_URL || 'http://localhost:3000').trim().replace(/\/+$/, ''); }
 
@@ -69,7 +73,12 @@ export class FedapayService {
       lastname: rest.join(' ') || 'Jovkey',
     };
     if (params.customer?.email) customer.email = params.customer.email;
-    if (params.customer?.phone) customer.phone_number = { number: params.customer.phone, country: 'bj' };
+    // Le pays doit correspondre à celui du compte marchand FedaPay (visible dans les
+    // opérateurs proposés au checkout, ex. Orange/Moov/Wave Côte d'Ivoire) — un pays
+    // client incohérent avec le compte fait échouer la transaction côté FedaPay.
+    if (params.customer?.phone) {
+      customer.phone_number = { number: params.customer.phone, country: this.customerCountry };
+    }
     // FedaPay exige au moins un email ou un numéro sur le client.
     if (!customer.email && !customer.phone_number) customer.email = `client-${params.paymentId}@jovkey.local`;
 

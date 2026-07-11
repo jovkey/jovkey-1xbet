@@ -3,11 +3,14 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeService } from '../realtime/realtime.service';
 import { FedapayService } from './fedapay.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { RechargeDto } from '../auth/dto';
+
+const RENEWAL_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 jours
 
 const GOLD_DEFAULT_XOF = 5600;
 const GOLD_SUBSCRIPTION_DAYS = 30;
@@ -85,6 +88,36 @@ export class PaymentsService {
     });
     await this.prisma.payment.update({ where: { id: payment.id }, data: { checkoutUrl: paymentUrl, providerTxId } });
     return { paymentId: payment.id, paymentUrl, mode: this.fedapay.mode };
+  }
+
+  /** Génère (et persiste) un token de renouvellement à usage unique pour un membre Gold. */
+  async generateRenewalToken(userId: string): Promise<string> {
+    const token = crypto.randomBytes(32).toString('hex');
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { renewalToken: token, renewalTokenExpiresAt: new Date(Date.now() + RENEWAL_TOKEN_TTL_MS) },
+    });
+    return token;
+  }
+
+  /**
+   * Renouvellement Gold "1 clic" depuis le lien reçu par email — pas besoin d'être
+   * connecté. FedaPay n'offrant pas de prélèvement automatique récurrent (vérifié dans
+   * leur doc API), c'est l'approximation la plus honnête : un lien pré-rempli, le client
+   * n'a plus qu'à confirmer son paiement mobile money/carte, sans ressaisir aucune info.
+   */
+  async renewGoldByToken(token: string) {
+    const user = await this.prisma.user.findUnique({ where: { renewalToken: token } });
+    if (!user || !user.renewalTokenExpiresAt || user.renewalTokenExpiresAt < new Date()) {
+      throw new NotFoundException('Lien de renouvellement invalide ou expiré.');
+    }
+    // À usage unique : on invalide le token tout de suite pour empêcher toute réutilisation
+    // (lien transféré, email ouvert deux fois…) avant même de créer la transaction.
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { renewalToken: null, renewalTokenExpiresAt: null },
+    });
+    return this.initFedapay(user.id, 'gold_subscription', undefined, { email: user.email ?? undefined });
   }
 
   /** Confirme un paiement FedaPay (webhook / retour / simulation) : active ou rejette, idempotent. */

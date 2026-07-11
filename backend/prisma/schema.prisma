@@ -94,6 +94,13 @@ model User {
   passwordResetCode      String?   @map("password_reset_code")
   passwordResetExpiresAt DateTime? @map("password_reset_expires_at")
 
+  // Rappel de renouvellement Gold : évite de renvoyer le même rappel plusieurs fois pour
+  // le même cycle (on compare à `subscriptionEndsAt` courant, qui change à chaque renouvellement).
+  // Le token permet un renouvellement "1 clic" depuis l'email, sans être connecté.
+  renewalReminderSentFor DateTime? @map("renewal_reminder_sent_for")
+  renewalToken           String?   @unique @map("renewal_token")
+  renewalTokenExpiresAt  DateTime? @map("renewal_token_expires_at")
+
   // §3 — Trois soldes étanches pour l'investisseur (validation admin avant retrait).
   balanceWithdrawable  Decimal @default(0) @db.Decimal(12, 2) @map("balance_withdrawable")  // retirable
   balanceUnderAnalysis Decimal @default(0) @db.Decimal(12, 2) @map("balance_under_analysis") // sous analyse
