@@ -25,6 +25,17 @@ export class ReviewsService {
     });
   }
 
+  /** Vue admin complète : tous les avis (publiés inclus) — sert à en supprimer un si besoin. */
+  listAll() {
+    return this.prisma.review.findMany({ orderBy: { createdAt: 'desc' } });
+  }
+
+  async remove(id: string) {
+    await this.prisma.review.delete({ where: { id } });
+    this.realtime.emit({ type: 'review.moderated', data: { id, status: 'deleted' } });
+    return { ok: true };
+  }
+
   async create(dto: CreateReviewDto) {
     // ≥4★ publié d'emblée ; <4★ part en modération (conservé, pas supprimé).
     const status: ReviewStatus = dto.rating >= 4 ? 'published' : 'pending';

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { ApiBearerAuth, ApiProperty, ApiTags } from '@nestjs/swagger';
 import { IsInt, IsOptional, IsString, Max, Min, MinLength } from 'class-validator';
@@ -75,6 +75,24 @@ export class ReviewsController {
   @Roles('admin')
   reject(@Param('id') id: string) {
     return this.reviews.setStatus(id, 'rejected');
+  }
+
+  /** Vue admin complète (publiés inclus) — pour repérer un avis à supprimer. */
+  @Get('admin')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  listAll() {
+    return this.reviews.listAll();
+  }
+
+  /** Suppression définitive d'un avis (ex. publié par erreur, spam…). */
+  @Delete(':id')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  remove(@Param('id') id: string) {
+    return this.reviews.remove(id);
   }
 
   /** Seeding : injecte des avis de démonstration pour asseoir la crédibilité au lancement. */

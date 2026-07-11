@@ -2,7 +2,10 @@ import type { Config } from 'tailwindcss';
 
 // Charte officielle JOVKEY-1XBET (extraite de la maquette de référence + PDF).
 const config: Config = {
-  content: ['./app/**/*.{ts,tsx}', './components/**/*.{ts,tsx}'],
+  // `lib/` inclus explicitement : clipboard.ts (showToast) construit ses classes en
+  // pur JS, sans JSX — sans ce glob, Tailwind ne les voit jamais et le toast s'affiche
+  // sans AUCUN style en production (invisible, bien qu'existant dans le DOM).
+  content: ['./app/**/*.{ts,tsx}', './components/**/*.{ts,tsx}', './lib/**/*.{ts,tsx}'],
   theme: {
     extend: {
       colors: {

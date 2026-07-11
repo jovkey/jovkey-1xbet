@@ -372,11 +372,14 @@ function MarqueeTab() {
 }
 
 /* ── Carrousel ──────────────────────────────────────────── */
+const TUNNEL_LABEL: Record<string, string> = { flash: 'Flash', gold: 'Gold', investor: 'Investisseur' };
+
 function CarouselTab() {
   const [slides, setSlides] = useState<any[]>([]);
   const [url, setUrl] = useState('');
   const [caption, setCaption] = useState('');
   const [tunnel, setTunnel] = useState('flash');
+  const [filter, setFilter] = useState<'all' | 'flash' | 'gold' | 'investor'>('all');
   const [uploading, setUploading] = useState(false);
   const load = () => api('/cms/public').then((c: any) => setSlides(c.slides)).catch(() => {});
   useEffect(() => { load(); }, []);
@@ -394,13 +397,14 @@ function CarouselTab() {
     setUrl(''); setCaption(''); showToast('Image ajoutée'); load();
   };
   const del = async (id: string) => { await api(`/cms/carousel/${id}`, { method: 'DELETE', auth: true }); load(); };
+  const visible = filter === 'all' ? slides : slides.filter((s) => s.linkTunnel === filter);
   const move = async (idx: number, dir: -1 | 1) => {
-    const next = [...slides];
+    const next = [...visible];
     const j = idx + dir;
     if (j < 0 || j >= next.length) return;
     [next[idx], next[j]] = [next[j], next[idx]];
-    setSlides(next);
     await api('/cms/carousel/reorder', { method: 'PUT', auth: true, body: { orderedIds: next.map((s) => s.id) } });
+    load();
   };
   return (
     <div>
@@ -410,7 +414,7 @@ function CarouselTab() {
           <input type="file" accept="image/*" onChange={onUpload} className="hidden" />
         </label>
         <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="…ou coller une URL" className="glass rounded-xl px-3 tap-target outline-none md:col-span-2" />
-        <input value={caption} onChange={(e) => setCaption(e.target.value)} placeholder="Légende" className="glass rounded-xl px-3 tap-target outline-none md:col-span-2" />
+        <input value={caption} onChange={(e) => setCaption(e.target.value)} placeholder="Légende (affichée sous l'image)" className="glass rounded-xl px-3 tap-target outline-none md:col-span-2" />
         <select value={tunnel} onChange={(e) => setTunnel(e.target.value)} className="glass rounded-xl px-3 tap-target outline-none bg-night md:col-span-2">
           <option value="flash">Flash</option>
           <option value="gold">Gold</option>
@@ -418,20 +422,31 @@ function CarouselTab() {
         </select>
         <button onClick={add} className="gold-gradient text-black rounded-xl font-black tap-target md:col-span-4">Ajouter au carrousel</button>
       </div>
+
+      <div className="flex gap-2 mb-4">
+        {(['all', 'flash', 'gold', 'investor'] as const).map((f) => (
+          <button key={f} onClick={() => setFilter(f)}
+            className={`px-4 py-2 rounded-xl text-sm font-bold ${filter === f ? 'gold-gradient text-black' : 'glass hover:bg-white/10'}`}>
+            {f === 'all' ? `Tous (${slides.length})` : `${TUNNEL_LABEL[f]} (${slides.filter((s) => s.linkTunnel === f).length})`}
+          </button>
+        ))}
+      </div>
+
       <div className="space-y-3">
-        {slides.map((s, i) => (
+        {visible.map((s, i) => (
           <div key={s.id} className="glass rounded-xl p-3 flex items-center gap-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={mediaUrl(s.imageUrl)} alt="" className="w-20 h-12 object-cover rounded-lg" />
             <div className="flex-1">
               <div className="text-sm font-bold">{s.caption || '—'}</div>
-              <div className="text-[10px] uppercase text-gray-500">Tunnel : {s.linkTunnel}</div>
+              <div className="text-[10px] uppercase text-gray-500">Tunnel : {TUNNEL_LABEL[s.linkTunnel] || s.linkTunnel}</div>
             </div>
             <button onClick={() => move(i, -1)} className="glass rounded-lg px-3 py-1">↑</button>
             <button onClick={() => move(i, 1)} className="glass rounded-lg px-3 py-1">↓</button>
             <button onClick={() => del(s.id)} className="text-red-400 text-sm">Suppr.</button>
           </div>
         ))}
+        {!visible.length && <p className="text-gray-500 text-sm">Aucune image pour ce tunnel — ajoute-en une ci-dessus.</p>}
       </div>
     </div>
   );
@@ -553,37 +568,71 @@ function VideoTab() {
   );
 }
 
-/* ── Avis (modération) ──────────────────────────────────── */
+/* ── Avis (modération + suppression) ──────────────────────── */
 function ReviewsTab() {
   const [pending, setPending] = useState<any[]>([]);
-  const load = () => api('/reviews/moderation', { auth: true }).then(setPending).catch(() => {});
+  const [all, setAll] = useState<any[]>([]);
+  const load = () => {
+    api('/reviews/moderation', { auth: true }).then(setPending).catch(() => {});
+    api<any[]>('/reviews/admin', { auth: true }).then(setAll).catch(() => {});
+  };
   useEffect(() => { load(); }, []);
   const act = async (id: string, action: 'publish' | 'reject') => {
     await api(`/reviews/${id}/${action}`, { method: 'POST', auth: true }); load();
   };
+  const remove = async (r: any) => {
+    if (!confirm(`Supprimer définitivement l'avis de ${r.authorName} ?`)) return;
+    await api(`/reviews/${r.id}`, { method: 'DELETE', auth: true });
+    showToast('Avis supprimé'); load();
+  };
   const seed = async () => {
     const res = await api<{ seeded: number }>('/reviews/seed', { method: 'POST', auth: true });
-    showToast(`${res.seeded} avis de démo injectés`);
+    showToast(`${res.seeded} avis de démo injectés`); load();
   };
+  const statusLabel: Record<string, string> = { published: 'publié', pending: 'en attente', rejected: 'rejeté' };
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <p className="text-gray-400 text-sm flex-1">Les avis 4-5★ sont publiés automatiquement. Voici la file &lt; 4★ à trier (rien n&apos;est supprimé en silence).</p>
-        <button onClick={seed} className="glass rounded-xl px-4 py-2 text-sm hover:bg-white/10 shrink-0">Injecter des avis de démo</button>
-      </div>
-      {pending.map((r) => (
-        <div key={r.id} className="glass rounded-xl p-4">
-          <div className="flex justify-between mb-1">
-            <span className="font-bold">{r.authorName} · {r.rating}★</span>
-            <div className="flex gap-2">
-              <button onClick={() => act(r.id, 'publish')} className="text-live text-sm">Publier</button>
-              <button onClick={() => act(r.id, 'reject')} className="text-red-400 text-sm">Rejeter</button>
-            </div>
-          </div>
-          <p className="text-gray-400 text-sm">{r.body}</p>
+    <div className="space-y-6">
+      <div>
+        <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
+          <p className="text-gray-400 text-sm flex-1">Les avis 4-5★ sont publiés automatiquement. Voici la file &lt; 4★ à trier (rien n&apos;est supprimé en silence).</p>
+          <button onClick={seed} className="glass rounded-xl px-4 py-2 text-sm hover:bg-white/10 shrink-0">Injecter des avis de démo</button>
         </div>
-      ))}
-      {!pending.length && <p className="text-gray-500 text-sm">Aucun avis en attente.</p>}
+        <div className="space-y-3">
+          {pending.map((r) => (
+            <div key={r.id} className="glass rounded-xl p-4">
+              <div className="flex justify-between mb-1">
+                <span className="font-bold">{r.authorName} · {r.rating}★</span>
+                <div className="flex gap-2">
+                  <button onClick={() => act(r.id, 'publish')} className="text-live text-sm">Publier</button>
+                  <button onClick={() => act(r.id, 'reject')} className="text-red-400 text-sm">Rejeter</button>
+                </div>
+              </div>
+              <p className="text-gray-400 text-sm">{r.body}</p>
+            </div>
+          ))}
+          {!pending.length && <p className="text-gray-500 text-sm">Aucun avis en attente.</p>}
+        </div>
+      </div>
+
+      <div>
+        <h3 className="font-black mb-1">Tous les avis</h3>
+        <p className="text-gray-400 text-sm mb-3">Publiés, rejetés, en attente — supprime un avis (spam, erreur…) à tout moment.</p>
+        <div className="space-y-2">
+          {all.map((r) => (
+            <div key={r.id} className="glass rounded-xl p-3 flex items-start justify-between gap-3">
+              <div>
+                <span className="font-bold text-sm">{r.authorName} · {r.rating}★</span>
+                <span className="text-[10px] uppercase text-gray-500 ml-2">{statusLabel[r.status] || r.status}</span>
+                <p className="text-gray-400 text-sm mt-1">{r.body}</p>
+              </div>
+              <button onClick={() => remove(r)} className="text-red-400 hover:text-red-300 text-xs border border-red-400/30 rounded-lg px-2 py-1 shrink-0">
+                Supprimer
+              </button>
+            </div>
+          ))}
+          {!all.length && <p className="text-gray-500 text-sm">Aucun avis.</p>}
+        </div>
+      </div>
     </div>
   );
 }
