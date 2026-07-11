@@ -11,6 +11,9 @@ const nextConfig = {
   // puisque frontend (vercel.app) et backend (onrender.com) sont deux domaines distincts.
   async rewrites() {
     const backend = (process.env.BACKEND_API_URL || 'http://localhost:4000').trim().replace(/\/+$/, '');
+    // Log de build : visible dans les Vercel Deployment Logs, sert à confirmer que
+    // BACKEND_API_URL est bien vu au build (sinon on retombe sur localhost → 404).
+    console.log(`[next.config.js] rewrite /api/* → ${backend}/api/*`);
     return [{ source: '/api/:path*', destination: `${backend}/api/:path*` }];
   },
 };
