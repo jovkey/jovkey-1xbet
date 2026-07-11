@@ -629,6 +629,83 @@ function AnalysisView({ analysis }: { analysis: any }) {
   );
 }
 
+/* ── Coupon créé à la main par l'admin (indépendant du moteur IA) ─ */
+function ManualCouponForm({ onCreated }: { onCreated: () => void }) {
+  const [sport, setSport] = useState('football');
+  const [match, setMatch] = useState('');
+  const [selection, setSelection] = useState('');
+  const [odds, setOdds] = useState('5');
+  const [couponCode, setCouponCode] = useState('');
+  const [tier, setTier] = useState<'free' | 'gold' | 'investor'>('gold');
+  const [busy, setBusy] = useState(false);
+
+  const create = async () => {
+    if (!match.trim() || !selection.trim() || !couponCode.trim()) {
+      return showToast('Match, sélection et code coupon sont obligatoires');
+    }
+    setBusy(true);
+    try {
+      await api('/predictions/manual', {
+        method: 'POST',
+        auth: true,
+        body: {
+          sport, match: match.trim(), market: `Coupon`, selection: selection.trim(),
+          odds: Number(odds), couponCode: couponCode.trim(), tier,
+        },
+      });
+      showToast('Coupon publié');
+      setMatch(''); setSelection(''); setCouponCode('');
+      onCreated();
+    } catch (e: any) {
+      showToast(e.message || 'Échec de la création');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="glass rounded-2xl p-5">
+      <h3 className="font-black mb-1">Créer un coupon manuellement</h3>
+      <p className="text-xs text-gray-400 mb-4">
+        Contenu promotionnel que tu contrôles toi-même (indépendant du moteur IA) — publié
+        immédiatement dans le tier choisi. Sert à animer le flux entre deux passages du moteur.
+      </p>
+      <div className="grid md:grid-cols-2 gap-3">
+        <select value={sport} onChange={(e) => setSport(e.target.value)} className="glass rounded-xl px-3 tap-target outline-none bg-night">
+          {['football', 'basketball', 'hockey', 'tennis_table'].map((s) => <option key={s} value={s}>{s}</option>)}
+        </select>
+        <select value={tier} onChange={(e) => setTier(e.target.value as any)} className="glass rounded-xl px-3 tap-target outline-none bg-night">
+          <option value="gold">Gold</option>
+          <option value="investor">Investisseur</option>
+          <option value="free">Ticket gratuit</option>
+        </select>
+        <input value={match} onChange={(e) => setMatch(e.target.value)} placeholder="Ex : Combiné du jour"
+          className="glass rounded-xl px-3 tap-target outline-none focus:border-gold md:col-span-2" />
+        <input value={selection} onChange={(e) => setSelection(e.target.value)} placeholder="Sélection (ex : Combiné 3 matchs)"
+          className="glass rounded-xl px-3 tap-target outline-none focus:border-gold md:col-span-2" />
+        <input value={couponCode} onChange={(e) => setCouponCode(e.target.value)} placeholder="Code coupon 1xBet"
+          className="glass rounded-xl px-3 tap-target outline-none focus:border-gold md:col-span-2" />
+        <div className="md:col-span-2">
+          <label className="block text-xs uppercase tracking-widest text-gray-400 mb-1">Cote</label>
+          <div className="flex gap-2 flex-wrap">
+            {[5, 10, 15, 50].map((v) => (
+              <button key={v} type="button" onClick={() => setOdds(String(v))}
+                className={`px-4 py-2 rounded-xl text-sm font-black tap-target ${odds === String(v) ? 'gold-gradient text-black' : 'glass hover:bg-white/10'}`}>
+                Cote {v}
+              </button>
+            ))}
+            <input value={odds} onChange={(e) => setOdds(e.target.value)} inputMode="decimal" placeholder="Autre"
+              className="glass rounded-xl px-3 py-2 text-sm outline-none focus:border-gold w-24" />
+          </div>
+        </div>
+      </div>
+      <button onClick={create} disabled={busy} className="gold-gradient text-black rounded-xl font-black tap-target px-6 mt-4 disabled:opacity-60">
+        {busy ? 'Publication…' : 'Publier le coupon'}
+      </button>
+    </div>
+  );
+}
+
 /* ── Prédictions IA (réception moteur + push) ───────────── */
 function PredictionsTab() {
   const [items, setItems] = useState<any[]>([]);
@@ -654,6 +731,8 @@ function PredictionsTab() {
 
   return (
     <div className="space-y-3">
+      <ManualCouponForm onCreated={load} />
+
       {/* Performance auto-apprenante */}
       {perf && (
         <div className="glass rounded-2xl p-5">
@@ -812,6 +891,7 @@ function TextsTab() {
   const [fcTitle, setFcTitle] = useState('');
   const [fcCta, setFcCta] = useState('');
   const [fcMsg, setFcMsg] = useState('');
+  const [goldAnnounce, setGoldAnnounce] = useState('');
   useEffect(() => {
     api('/cms/public').then((c: any) => {
       setPrice(String(c.settings?.gold_price?.amount ?? 5600));
@@ -821,6 +901,7 @@ function TextsTab() {
       setFcTitle(c.settings?.free_coupon_title?.text ?? '');
       setFcCta(c.settings?.free_coupon_cta?.text ?? '');
       setFcMsg(c.settings?.free_coupon_message?.text ?? '');
+      setGoldAnnounce(c.settings?.gold_announcement?.text ?? '');
     }).catch(() => {});
   }, []);
   const saveSetting = async (key: string, value: unknown, label: string) => {
@@ -849,6 +930,19 @@ function TextsTab() {
           await saveSetting('gold_price', { amount: Number(price) }, 'Montant Gold');
           await saveSetting('gold_price_label', { text: priceLabel }, 'Texte du prix');
         }} className="gold-gradient text-black rounded-xl font-black tap-target px-5">Enregistrer le tarif</button>
+      </div>
+
+      <div className="glass rounded-2xl p-6">
+        <h3 className="font-black mb-1">Annonce dans l&apos;espace Gold</h3>
+        <p className="text-gray-400 text-sm mb-3">
+          Bandeau affiché en haut du tableau de bord Gold — motive les membres, annonce une
+          info ponctuelle. Laisse vide pour ne rien afficher.
+        </p>
+        <textarea value={goldAnnounce} onChange={(e) => setGoldAnnounce(e.target.value)} rows={2}
+          placeholder="Ex : Nouveaux coupons ajoutés chaque jour à 9h — reste connecté !"
+          className="w-full glass rounded-xl px-4 py-3 mb-3 outline-none focus:border-gold" />
+        <button onClick={() => saveSetting('gold_announcement', { text: goldAnnounce }, 'Annonce Gold')}
+          className="gold-gradient text-black rounded-xl font-black tap-target px-5">Enregistrer</button>
       </div>
 
       <div className="glass rounded-2xl p-6">

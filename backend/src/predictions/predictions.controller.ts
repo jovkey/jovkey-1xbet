@@ -34,6 +34,22 @@ export class PublishPredictionDto {
   @ApiProperty({ required: false }) @IsOptional() @IsString() couponCode?: string;
 }
 
+/**
+ * Coupon créé À LA MAIN par l'admin (ex. "Coupon 1", "Coupon 2"…), indépendamment
+ * du moteur IA — contenu promotionnel assumé comme tel (marché/sport libres, pas un
+ * "vrai match détecté"), publié immédiatement dans le tier choisi.
+ */
+export class ManualPredictionDto {
+  @ApiProperty() @IsString() sport!: string;
+  @ApiProperty() @IsString() match!: string;
+  @ApiProperty() @IsString() market!: string;
+  @ApiProperty() @IsString() selection!: string;
+  @ApiProperty() @IsNumber() odds!: number;
+  @ApiProperty() @IsString() couponCode!: string;
+  @ApiProperty({ enum: ['free', 'gold', 'investor'] }) @IsString() tier!: 'free' | 'gold' | 'investor';
+  @ApiProperty({ required: false }) @IsOptional() @IsInt() reliability?: number;
+}
+
 export class SetResultDto {
   @ApiProperty({ enum: ['won', 'lost', 'void'] }) @IsString() result!: 'won' | 'lost' | 'void';
   @ApiProperty({ required: false }) @IsOptional() @IsString() note?: string;
@@ -134,6 +150,15 @@ export class PredictionsController {
   @Roles('admin')
   publish(@Param('id') id: string, @Body() dto: PublishPredictionDto) {
     return this.predictions.publish(id, dto.tier, dto.couponCode);
+  }
+
+  /** Coupon créé à la main par l'admin (indépendant du moteur IA), publié immédiatement. */
+  @Post('manual')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  createManual(@Body() dto: ManualPredictionDto) {
+    return this.predictions.createManual(dto);
   }
 
   /** Ingestion depuis le moteur d'analyse nocturne Python (clé interne). */

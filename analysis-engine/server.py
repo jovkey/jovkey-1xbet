@@ -15,14 +15,18 @@ Si ton hébergeur propose un vrai Cron Job (Render Cron Job payant, Railway Cron
 GitHub Actions planifié…), préfère-le : lance directement `python run.py evening`
 sur ce cron, c'est plus simple et plus fiable que ce wrapper toujours-actif.
 """
+import json
 import os
 import threading
 import time
 import traceback
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from urllib.parse import parse_qs, urlparse
 
 import run as engine  # même process : réutilise directement les fonctions de run.py
+
+ANALYSIS_API_KEY = os.getenv("ANALYSIS_API_KEY", "")
 
 # (heure, minute) UTC — minuit : passage principal ; 06h : re-vérification légère.
 SCHEDULE_UTC = [(0, 0), (6, 0)]
@@ -66,11 +70,48 @@ def scheduler_loop():
 
 
 class HealthHandler(BaseHTTPRequestHandler):
+    def _json(self, status: int, payload: dict):
+        body = json.dumps(payload).encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.end_headers()
+        self.wfile.write(body)
+
     def do_GET(self):  # noqa: N802
         self.send_response(200)
         self.send_header("Content-Type", "text/plain; charset=utf-8")
         self.end_headers()
         self.wfile.write(b"JOVKEY analysis-engine OK\n")
+
+    def do_POST(self):  # noqa: N802
+        """
+        Déclenchement manuel (ex. re-vérification après coup, run raté à minuit) — protégé
+        par la même clé interne que le reste du backend (ANALYSIS_API_KEY), jamais publique.
+        POST /trigger?cmd=evening|predict[&date=YYYY-MM-DD], header X-Analysis-Key.
+        Lance en arrière-plan (le vrai run peut prendre plusieurs minutes) et répond tout de
+        suite : le résultat se voit dans les logs Render + le flux Gold une fois terminé.
+        """
+        parsed = urlparse(self.path)
+        if parsed.path != "/trigger":
+            return self._json(404, {"error": "not found"})
+        if not ANALYSIS_API_KEY or self.headers.get("X-Analysis-Key") != ANALYSIS_API_KEY:
+            return self._json(401, {"error": "unauthorized"})
+
+        qs = parse_qs(parsed.query)
+        cmd = (qs.get("cmd") or ["evening"])[0]
+        date = (qs.get("date") or [datetime.now(timezone.utc).strftime("%Y-%m-%d")])[0]
+        if cmd not in ("evening", "predict"):
+            return self._json(400, {"error": "cmd doit être 'evening' ou 'predict'"})
+
+        def _run():
+            print(f"[trigger] {datetime.now(timezone.utc).isoformat()} — {cmd} {date} (déclenché manuellement)", flush=True)
+            try:
+                engine.cmd_evening(date) if cmd == "evening" else engine.cmd_predict(date, source="next")
+            except Exception:  # noqa: BLE001
+                traceback.print_exc()
+
+        threading.Thread(target=_run, daemon=True).start()
+        return self._json(202, {"status": "started", "cmd": cmd, "date": date})
 
     def log_message(self, format, *args):  # noqa: A002 — silence le log HTTP par défaut (bruit)
         pass

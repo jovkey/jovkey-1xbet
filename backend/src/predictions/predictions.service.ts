@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeService } from '../realtime/realtime.service';
-import { IngestPredictionDto } from './predictions.controller';
+import { IngestPredictionDto, ManualPredictionDto } from './predictions.controller';
 
 @Injectable()
 export class PredictionsService {
@@ -93,6 +93,30 @@ export class PredictionsService {
         tier,
         isValidated: true,
         ...(couponCode ? { couponCode: couponCode.trim() } : {}),
+      },
+    });
+    this.realtime.emit({ type: 'prediction.new', data: { tier: p.tier, market: p.market } });
+    return p;
+  }
+
+  /**
+   * Coupon créé à la main par l'admin (§ "Coupon 1", "Coupon 2"…) — indépendant du
+   * moteur IA, publié immédiatement. Utile pour animer le flux Gold entre deux passages
+   * du moteur avec du contenu promotionnel assumé (cotes/marché choisis par l'admin).
+   */
+  async createManual(dto: ManualPredictionDto) {
+    const p = await this.prisma.prediction.create({
+      data: {
+        sport: dto.sport,
+        match: dto.match,
+        market: dto.market,
+        selection: dto.selection,
+        odds: dto.odds,
+        reliability: dto.reliability ?? 80,
+        couponCode: dto.couponCode.trim(),
+        valueScore: 0,
+        tier: dto.tier,
+        isValidated: true,
       },
     });
     this.realtime.emit({ type: 'prediction.new', data: { tier: p.tier, market: p.market } });

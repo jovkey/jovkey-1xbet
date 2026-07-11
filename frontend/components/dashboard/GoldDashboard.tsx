@@ -1,8 +1,9 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { Copy, Flame, Trophy, Crown, Sparkles, ShieldCheck, Lock, Zap } from 'lucide-react';
+import { Copy, Flame, Trophy, Crown, Sparkles, ShieldCheck, Lock, Zap, Megaphone } from 'lucide-react';
 import { api } from '@/lib/api';
 import { copyText } from '@/lib/clipboard';
+import { mediaUrl } from '@/lib/config';
 import { useRealtime } from '@/lib/useRealtime';
 import { Prediction } from '@/lib/types';
 
@@ -18,12 +19,22 @@ export default function GoldDashboard() {
   const [locked, setLocked] = useState(false);
   const [lockMessage, setLockMessage] = useState('');
   const [renewing, setRenewing] = useState(false);
+  const [announcement, setAnnouncement] = useState('');
+  const [slides, setSlides] = useState<{ id: string; imageUrl: string; caption?: string }[]>([]);
 
   const load = () =>
     api<{ locked: boolean; message?: string; items: Prediction[] }>('/predictions/feed', { auth: true })
       .then((res) => { setFeed(res.items); setLocked(res.locked); setLockMessage(res.message || ''); })
       .catch(() => {});
   useEffect(() => { load(); }, []);
+  useEffect(() => {
+    api<{ slides: any[]; settings: Record<string, any> }>('/cms/public')
+      .then((c) => {
+        setAnnouncement(c.settings?.gold_announcement?.text || '');
+        setSlides((c.slides || []).filter((s) => s.linkTunnel === 'gold'));
+      })
+      .catch(() => {});
+  }, []);
   useRealtime((type) => { if (type === 'prediction.new' || type === 'message') load(); });
 
   const renew = async () => {
@@ -50,6 +61,25 @@ export default function GoldDashboard() {
         </div>
         <Sparkles className="text-gold shrink-0 hidden md:block" size={36} />
       </div>
+
+      {announcement && (
+        <div className="glass rounded-2xl p-4 flex items-center gap-3 border-l-4 border-gold">
+          <Megaphone className="text-gold shrink-0" size={20} />
+          <p className="text-sm text-gray-200">{announcement}</p>
+        </div>
+      )}
+
+      {slides.length > 0 && (
+        <div className="flex gap-3 overflow-x-auto pb-1">
+          {slides.map((s) => (
+            <div key={s.id} className="shrink-0 w-64 rounded-2xl overflow-hidden glass">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={mediaUrl(s.imageUrl)} alt={s.caption || ''} className="w-full h-32 object-cover" />
+              {s.caption && <p className="text-xs text-gray-300 p-2">{s.caption}</p>}
+            </div>
+          ))}
+        </div>
+      )}
 
       {locked && (
         <div className="glass rounded-3xl p-6 border-2 border-gold/50 bg-gold/5 text-center">
