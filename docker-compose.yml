@@ -68,6 +68,10 @@ services:
         # `environment:` runtime, qui n'aurait aucun effet sur le code déjà compilé.
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
         NEXT_PUBLIC_PROMO_CODE: ${NEXT_PUBLIC_PROMO_CODE}
+    environment:
+      # Lu au runtime par next.config.js (rewrites /api/*) — contrairement aux
+      # NEXT_PUBLIC_*, celle-ci n'a pas besoin d'être figée au build.
+      BACKEND_API_URL: http://backend:4000
     restart: unless-stopped
     depends_on:
       - backend

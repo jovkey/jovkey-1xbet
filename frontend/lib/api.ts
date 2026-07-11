@@ -1,5 +1,3 @@
-import { API_URL } from './config';
-
 interface ApiOptions {
   method?: string;
   body?: unknown;
@@ -9,11 +7,13 @@ interface ApiOptions {
 /**
  * Le JWT vit dans un cookie httpOnly posé par le backend (jamais en localStorage,
  * jamais lisible par du JS côté client — ça mitige le vol de session par XSS).
- * `credentials: 'include'` suffit à le faire suivre automatiquement sur chaque
- * requête vers l'API (même domaine/CORS avec credentials: true côté backend).
+ * On appelle `/api/...` en RELATIF (même origine que le frontend) plutôt que l'URL
+ * directe du backend : next.config.js relaie en interne vers le vrai backend, ce qui
+ * rend le cookie 1st-party pour le navigateur. Un appel direct cross-domain ferait
+ * classer le cookie comme tiers, bloqué par défaut sur Brave/Safari/Chrome récent.
  */
 export async function api<T = any>(path: string, opts: ApiOptions = {}): Promise<T> {
-  const res = await fetch(`${API_URL}/api${path}`, {
+  const res = await fetch(`/api${path}`, {
     method: opts.method || 'GET',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
@@ -67,7 +67,7 @@ export function track(type: string, path?: string) {
 export async function apiUpload<T = any>(path: string, file: File): Promise<T> {
   const form = new FormData();
   form.append('file', file);
-  const res = await fetch(`${API_URL}/api${path}`, { method: 'POST', credentials: 'include', body: form });
+  const res = await fetch(`/api${path}`, { method: 'POST', credentials: 'include', body: form });
   if (!res.ok) {
     const detail = await res.json().catch(() => ({}));
     throw new Error(detail.message || `Erreur ${res.status}`);
