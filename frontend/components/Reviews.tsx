@@ -68,28 +68,36 @@ export default function Reviews() {
         Les avis 4★ et 5★ sont publiés ; les notes inférieures partent en modération.
       </p>
 
-      <div className="grid md:grid-cols-2 gap-5 mb-12">
-        {reviews.map((r) => (
-          <div key={r.id} className="glass rounded-2xl p-5 flex gap-4">
-            <Avatar name={r.authorName} />
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-bold">{r.authorName}</span>
-                {r.isSeed && (
-                  <span className="text-[9px] uppercase tracking-widest bg-white/10 text-gray-400 px-2 py-0.5 rounded">
-                    Démo
-                  </span>
-                )}
+      {/* Défilement continu plutôt qu'une liste statique qui allonge la page à mesure
+          que les avis s'accumulent — on duplique la liste pour une boucle sans coupure. */}
+      {reviews.length ? (
+        <div className="overflow-hidden mb-12" style={{ maskImage: 'linear-gradient(90deg, transparent, black 8%, black 92%, transparent)' }}>
+          <div
+            className="flex gap-5 w-max animate-marquee"
+            style={{ ['--marquee-duration' as any]: `${Math.max(20, reviews.length * 6)}s` }}
+          >
+            {[...reviews, ...reviews].map((r, i) => (
+              <div key={`${r.id}-${i}`} className="glass rounded-2xl p-5 flex gap-4 w-80 shrink-0">
+                <Avatar name={r.authorName} />
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold">{r.authorName}</span>
+                    {r.isSeed && (
+                      <span className="text-[9px] uppercase tracking-widest bg-white/10 text-gray-400 px-2 py-0.5 rounded">
+                        Démo
+                      </span>
+                    )}
+                  </div>
+                  <Stars value={r.rating} />
+                  <p className="text-gray-400 text-sm mt-2 line-clamp-3">{r.body}</p>
+                </div>
               </div>
-              <Stars value={r.rating} />
-              <p className="text-gray-400 text-sm mt-2">{r.body}</p>
-            </div>
+            ))}
           </div>
-        ))}
-        {!reviews.length && (
-          <p className="text-gray-500 text-sm col-span-2 text-center">Aucun avis publié pour l’instant.</p>
-        )}
-      </div>
+        </div>
+      ) : (
+        <p className="text-gray-500 text-sm text-center mb-12">Aucun avis publié pour l’instant.</p>
+      )}
 
       <div className="glass rounded-3xl p-6 max-w-xl mx-auto">
         <h3 className="text-xl font-black mb-4">Laisser un avis</h3>

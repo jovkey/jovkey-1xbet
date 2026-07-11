@@ -254,6 +254,63 @@ function PaymentsTab({ onChange }: { onChange: () => void }) {
 }
 
 /* ── Retraits ───────────────────────────────────────────── */
+/** Clôture du cycle : verse le capital gelé (+gain) des investisseurs actifs ce mois-ci. */
+function CycleClosureSection({ onChange }: { onChange: () => void }) {
+  const [items, setItems] = useState<any[]>([]);
+  const [amounts, setAmounts] = useState<Record<string, string>>({});
+  const [gains, setGains] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState<string | null>(null);
+  const load = () => api<any[]>('/investments/active-cycle', { auth: true }).then((d) => {
+    setItems(d);
+    setAmounts((prev) => ({ ...Object.fromEntries(d.map((u) => [u.userId, String(u.balanceFrozen)])), ...prev }));
+  }).catch(() => {});
+  useEffect(() => { load(); }, []);
+
+  const pay = async (userId: string) => {
+    const amount = Number(amounts[userId] || 0);
+    const gain = Number(gains[userId] || 0);
+    if (!amount) return showToast('Montant invalide');
+    setBusy(userId);
+    try {
+      await api(`/investments/${userId}/release`, { method: 'POST', auth: true, body: { amount, gain } });
+      showToast('Capital versé sur le solde retirable du client'); load(); onChange();
+    } catch (e: any) {
+      showToast(e.message || 'Échec du versement');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  if (!items.length) return null;
+  return (
+    <div className="glass rounded-2xl p-5 mb-5">
+      <h3 className="font-black mb-1">Clôture du cycle — versement du capital investi</h3>
+      <p className="text-xs text-gray-400 mb-4">
+        Investisseurs avec un capital actif ce mois-ci. Saisis le montant (capital, pré-rempli) et
+        le gain éventuel, puis verse — l’argent part directement sur le solde retirable du client.
+      </p>
+      <div className="space-y-2">
+        {items.map((u) => (
+          <div key={u.userId} className="glass rounded-xl p-3 flex flex-wrap items-center gap-3">
+            <div className="flex-1 min-w-[160px]">
+              <div className="font-bold text-sm">{u.email || u.id1xbet || '—'}</div>
+              <div className="text-[11px] text-gray-500">Gelé : {fmt(u.balanceFrozen)}</div>
+            </div>
+            <input value={amounts[u.userId] ?? ''} onChange={(e) => setAmounts({ ...amounts, [u.userId]: e.target.value })}
+              inputMode="numeric" placeholder="Capital" className="glass rounded-lg px-3 py-2 text-sm outline-none focus:border-gold w-28" />
+            <input value={gains[u.userId] ?? ''} onChange={(e) => setGains({ ...gains, [u.userId]: e.target.value })}
+              inputMode="numeric" placeholder="Gain (0)" className="glass rounded-lg px-3 py-2 text-sm outline-none focus:border-gold w-24" />
+            <button onClick={() => pay(u.userId)} disabled={busy === u.userId}
+              className="gold-gradient text-black rounded-lg px-4 py-2 text-sm font-bold disabled:opacity-60">
+              {busy === u.userId ? 'Versement…' : 'Verser'}
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function WithdrawalsTab({ onChange }: { onChange: () => void }) {
   const [items, setItems] = useState<any[]>([]);
   const load = () => api('/investments/withdrawals', { auth: true }).then(setItems).catch(() => {});
@@ -264,6 +321,7 @@ function WithdrawalsTab({ onChange }: { onChange: () => void }) {
   };
   return (
     <div className="space-y-3">
+      <CycleClosureSection onChange={onChange} />
       <p className="text-gray-400 text-sm">Tout retrait est gelé jusqu’à votre validation.</p>
       {items.map((w) => (
         <div key={w.id} className="glass rounded-xl p-4 flex flex-wrap justify-between items-center gap-3">

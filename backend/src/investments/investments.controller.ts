@@ -30,6 +30,15 @@ export class InvestmentsController {
     return this.investments.requestWithdrawal(user.id, dto);
   }
 
+  /** Admin : investisseurs actifs (capital gelé) ce cycle — outil de versement de fin de mois. */
+  @Get('active-cycle')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  activeThisCycle() {
+    return this.investments.activeThisCycle();
+  }
+
   /** Admin : retraits en attente de validation. */
   @Get('withdrawals')
   @ApiBearerAuth()

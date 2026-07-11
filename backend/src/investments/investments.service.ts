@@ -119,6 +119,35 @@ export class InvestmentsService {
     };
   }
 
+  /**
+   * Admin : investisseurs avec un capital actif (gelé) sur le cycle en cours — sert
+   * l'outil de versement de fin de mois (onglet Retraits). Un même client peut avoir
+   * plusieurs dépôts validés dans le mois ; on regroupe par client, une seule ligne.
+   */
+  async activeThisCycle() {
+    const cycle = this.currentCycle();
+    const investments = await this.prisma.investment.findMany({
+      where: { cycleMonth: cycle, status: 'active' },
+      include: { user: { select: { id: true, email: true, id1xbet: true, balanceFrozen: true } } },
+    });
+    const byUser = new Map<string, { userId: string; email: string | null; id1xbet: string | null; capital: number; balanceFrozen: number }>();
+    for (const inv of investments) {
+      const existing = byUser.get(inv.userId);
+      const capital = Number(inv.capital);
+      if (existing) existing.capital += capital;
+      else {
+        byUser.set(inv.userId, {
+          userId: inv.userId,
+          email: inv.user.email,
+          id1xbet: inv.user.id1xbet,
+          capital,
+          balanceFrozen: Number(inv.user.balanceFrozen),
+        });
+      }
+    }
+    return Array.from(byUser.values());
+  }
+
   /** Admin : retraits en attente. */
   listWithdrawals() {
     return this.prisma.withdrawal.findMany({
