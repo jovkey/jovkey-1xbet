@@ -5,6 +5,8 @@ export interface AuthUser {
   email: string | null;
   role: Role;
   id1xbet?: string | null;
+  accountStatus?: 'active' | 'pending_payment' | 'suspended';
+  subscriptionEndsAt?: string | null;
 }
 
 export interface Prediction {

@@ -9,6 +9,7 @@ import GoldDashboard from '@/components/dashboard/GoldDashboard';
 import InvestorDashboard from '@/components/dashboard/InvestorDashboard';
 import AdminPanel from '@/components/dashboard/AdminPanel';
 import ChangePasswordModal from '@/components/ChangePasswordModal';
+import PendingGoldPayment from '@/components/PendingGoldPayment';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -53,7 +54,13 @@ export default function DashboardPage() {
 
       {showPasswordModal && <ChangePasswordModal onClose={() => setShowPasswordModal(false)} />}
 
-      {user.role === 'investor' ? <InvestorDashboard /> : <GoldDashboard />}
+      {user.role === 'gold' && user.accountStatus === 'pending_payment' ? (
+        <PendingGoldPayment />
+      ) : user.role === 'investor' ? (
+        <InvestorDashboard />
+      ) : (
+        <GoldDashboard />
+      )}
     </main>
   );
 }

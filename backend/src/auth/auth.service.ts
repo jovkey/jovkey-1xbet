@@ -42,12 +42,10 @@ export class AuthService {
     if (!user || !user.passwordHash) {
       throw new UnauthorizedException('Identifiants invalides');
     }
-    if (user.accountStatus === 'pending_payment') {
-      throw new UnauthorizedException(
-        'Votre paiement est en cours de validation par l’administration. ' +
-          'Vous recevrez l’accès dès qu’il sera confirmé.',
-      );
-    }
+    // pending_payment (Gold pas encore payé) : on N'EMPÊCHE PLUS la connexion — sinon
+    // un premier paiement raté/annulé enferme le compte dans une impasse (email déjà
+    // pris pour se réinscrire, connexion bloquée). Le dashboard affiche un écran
+    // « finalise ton paiement » avec un vrai bouton pour relancer FedaPay.
     if (user.accountStatus === 'suspended') {
       throw new UnauthorizedException('Compte suspendu. Contactez le support.');
     }

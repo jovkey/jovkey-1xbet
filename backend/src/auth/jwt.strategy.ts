@@ -38,6 +38,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       id1xbet: user.id1xbet,
       role: user.role,
       subscriptionEndsAt: user.subscriptionEndsAt,
+      accountStatus: user.accountStatus,
     };
   }
 }

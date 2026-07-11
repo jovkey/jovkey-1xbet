@@ -6,6 +6,7 @@ export interface AuthUser {
   id1xbet: string | null;
   role: 'gold' | 'investor' | 'admin' | 'superadmin';
   subscriptionEndsAt: Date | null;
+  accountStatus: 'active' | 'pending_payment' | 'suspended';
 }
 
 export const CurrentUser = createParamDecorator(
