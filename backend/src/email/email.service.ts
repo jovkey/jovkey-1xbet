@@ -55,7 +55,7 @@ export class EmailService {
       <div style="font-family:sans-serif;background:#0f172a;color:#f8fafc;padding:32px;border-radius:16px;max-width:420px;margin:auto;">
         <h1 style="color:#f59e0b;font-size:20px;margin:0 0 16px;">JOVKEY-1XBET</h1>
         <p style="margin:0 0 8px;">Ton abonnement Gold arrive à échéance ${jours}.</p>
-        <p style="color:#94a3b8;font-size:13px;margin:0 0 20px;">Renouvelle maintenant à moitié prix pour ne rien manquer des cotes précises du jour.</p>
+        <p style="color:#94a3b8;font-size:13px;margin:0 0 20px;">Renouvelle maintenant pour ne rien manquer des cotes précises du jour.</p>
         <a href="${renewLink}" style="display:block;text-align:center;background:linear-gradient(135deg,#f59e0b,#d97706);color:#000;font-weight:800;padding:14px;border-radius:12px;text-decoration:none;">Renouveler maintenant</a>
         <p style="color:#64748b;font-size:12px;margin:16px 0 0;">Ce lien expire dans 7 jours et ne fonctionne qu'une fois.</p>
       </div>

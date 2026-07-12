@@ -101,6 +101,11 @@ model User {
   renewalToken           String?   @unique @map("renewal_token")
   renewalTokenExpiresAt  DateTime? @map("renewal_token_expires_at")
 
+  // Prix Gold verrouillé au tout premier abonnement : le membre renouvelle toujours à CE
+  // prix, même si le tarif public (`gold_price`) change ensuite. Rempli une seule fois,
+  // lors de la validation du tout premier paiement Gold.
+  goldLockedPrice Decimal? @db.Decimal(12, 2) @map("gold_locked_price")
+
   // §3 — Trois soldes étanches pour l'investisseur (validation admin avant retrait).
   balanceWithdrawable  Decimal @default(0) @db.Decimal(12, 2) @map("balance_withdrawable")  // retirable
   balanceUnderAnalysis Decimal @default(0) @db.Decimal(12, 2) @map("balance_under_analysis") // sous analyse

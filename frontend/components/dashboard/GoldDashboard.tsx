@@ -91,7 +91,7 @@ export default function GoldDashboard() {
             disabled={renewing}
             className="gold-gradient text-black px-8 py-4 rounded-xl font-black tap-target inline-flex items-center gap-2 hover:scale-[1.03] transition disabled:opacity-60"
           >
-            <Zap size={18} /> {renewing ? 'Redirection…' : 'Renouveler maintenant — 50% de réduction'}
+            <Zap size={18} /> {renewing ? 'Redirection…' : 'Renouveler maintenant'}
           </button>
         </div>
       )}

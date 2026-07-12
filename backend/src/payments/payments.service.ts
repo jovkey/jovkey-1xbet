@@ -37,15 +37,15 @@ export class PaymentsService {
   }
 
   /**
-   * Prix Gold pour CE membre : moitié prix pour un ANCIEN abonné qui renouvelle
-   * (subscriptionEndsAt déjà défini = a déjà eu au moins un cycle payé), plein tarif
-   * pour un tout premier abonnement — incitation automatique au réengagement (§12).
+   * Prix Gold pour CE membre : le prix verrouillé lors de son tout premier abonnement
+   * (`goldLockedPrice`) s'il en a un, sinon le tarif public courant pour un tout premier
+   * abonnement. Un membre garde donc à vie le prix auquel il s'est engagé au départ,
+   * même si le tarif public change ensuite pour les nouveaux clients.
    */
   private async goldPriceFor(userId: string): Promise<number> {
-    const base = await this.baseGoldPrice();
-    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { subscriptionEndsAt: true } });
-    const isRenewal = !!user?.subscriptionEndsAt;
-    return isRenewal ? Math.round(base / 2) : base;
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { goldLockedPrice: true } });
+    if (user?.goldLockedPrice != null) return Number(user.goldLockedPrice);
+    return this.baseGoldPrice();
   }
 
   /**
@@ -236,6 +236,9 @@ export class PaymentsService {
       // encore expirée (renouvellement anticipé), sinon à partir de maintenant.
       const base = user?.subscriptionEndsAt && user.subscriptionEndsAt > new Date() ? user.subscriptionEndsAt : new Date();
       const subscriptionEndsAt = new Date(base.getTime() + GOLD_SUBSCRIPTION_DAYS * 24 * 60 * 60 * 1000);
+      // Premier paiement Gold validé : on verrouille le prix payé pour tous les
+      // renouvellements futurs de ce membre, quoi qu'il arrive au tarif public ensuite.
+      const goldLockedPrice = user?.goldLockedPrice == null ? amount : undefined;
 
       await this.prisma.$transaction([
         this.prisma.payment.update({
@@ -244,7 +247,7 @@ export class PaymentsService {
         }),
         this.prisma.user.update({
           where: { id: payment.userId },
-          data: { accountStatus: 'active', subscriptionEndsAt },
+          data: { accountStatus: 'active', subscriptionEndsAt, ...(goldLockedPrice != null ? { goldLockedPrice } : {}) },
         }),
       ]);
     } else {
