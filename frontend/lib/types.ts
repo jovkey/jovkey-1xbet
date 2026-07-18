@@ -19,6 +19,12 @@ export interface Prediction {
   reliability: number;
   couponCode: string;
   tier: string;
+  // Notation par le moteur (une fois le match joué) — sert à séparer
+  // « matchs du jour » et « matchs passés » avec leur résultat.
+  result?: 'pending' | 'won' | 'lost' | 'void';
+  resultNote?: string | null;
+  eventDate?: string | null;
+  playedAt?: string | null;
 }
 
 export interface Review {

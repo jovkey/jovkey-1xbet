@@ -1,6 +1,6 @@
 'use client';
-import { useEffect, useState } from 'react';
-import { Copy, Flame, Trophy, Crown, Sparkles, ShieldCheck, Lock, Zap, Megaphone } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Copy, Flame, Trophy, Crown, Sparkles, ShieldCheck, Lock, Zap, Megaphone, History, ChevronDown, CheckCircle2, XCircle } from 'lucide-react';
 import { api } from '@/lib/api';
 import { copyText } from '@/lib/clipboard';
 import { mediaUrl } from '@/lib/config';
@@ -21,6 +21,9 @@ export default function GoldDashboard() {
   const [renewing, setRenewing] = useState(false);
   const [announcement, setAnnouncement] = useState('');
   const [slides, setSlides] = useState<{ id: string; imageUrl: string; caption?: string }[]>([]);
+  // Deux sections repliables : « du jour » ouverte par défaut, « passés » fermée.
+  const [showCurrent, setShowCurrent] = useState(true);
+  const [showPast, setShowPast] = useState(false);
 
   const load = () =>
     api<{ locked: boolean; message?: string; items: Prediction[] }>('/predictions/feed', { auth: true })
@@ -46,6 +49,20 @@ export default function GoldDashboard() {
       setRenewing(false);
     }
   };
+
+  // Séparation : un pronostic noté (won/lost/void) est un match passé ; le reste est « du jour ».
+  const { current, past, pastWon, pastGraded } = useMemo(() => {
+    const cur: Prediction[] = [];
+    const old: Prediction[] = [];
+    for (const p of feed) (p.result && p.result !== 'pending' ? old : cur).push(p);
+    const graded = old.filter((p) => p.result === 'won' || p.result === 'lost');
+    return {
+      current: cur,
+      past: old,
+      pastGraded: graded.length,
+      pastWon: graded.filter((p) => p.result === 'won').length,
+    };
+  }, [feed]);
 
   return (
     <div className="space-y-6">
@@ -96,48 +113,113 @@ export default function GoldDashboard() {
         </div>
       )}
 
-      <div className="flex items-center gap-2">
-        <Flame className="text-gold" />
-        <h2 className="text-2xl font-black">Flux privé d’opportunités</h2>
-      </div>
+      {/* ── Section 1 : matchs du jour (repliable, ouverte par défaut) ── */}
+      <button
+        onClick={() => setShowCurrent((v) => !v)}
+        className="w-full glass rounded-2xl px-5 py-4 flex items-center justify-between tap-target"
+      >
+        <span className="flex items-center gap-2 text-xl font-black">
+          <Flame className="text-gold" /> Matchs du jour
+          <span className="text-xs font-bold text-black bg-gold rounded-full px-2 py-0.5">{current.length}</span>
+        </span>
+        <ChevronDown className={`text-gold transition-transform ${showCurrent ? 'rotate-180' : ''}`} />
+      </button>
 
-      <div className="grid md:grid-cols-2 gap-5">
-        {feed.map((p) => (
-          <div key={p.id} className="glass rounded-2xl p-5 border-l-4 border-gold relative overflow-hidden">
-            <div className="flex justify-between items-start mb-2">
-              <span className="text-[10px] uppercase tracking-widest text-gray-400">
-                {sportLabel[p.sport] || p.sport} · {p.market}
-              </span>
-              <span className="text-xs font-black text-live flex items-center gap-1">
-                <Trophy size={12} /> {p.reliability}%
-              </span>
+      {showCurrent && (
+        <div className="grid md:grid-cols-2 gap-5">
+          {current.map((p) => (
+            <div key={p.id} className="glass rounded-2xl p-5 border-l-4 border-gold relative overflow-hidden">
+              <div className="flex justify-between items-start mb-2">
+                <span className="text-[10px] uppercase tracking-widest text-gray-400">
+                  {sportLabel[p.sport] || p.sport} · {p.market}
+                </span>
+                <span className="text-xs font-black text-live flex items-center gap-1">
+                  <Trophy size={12} /> {p.reliability}%
+                </span>
+              </div>
+              <div className="font-bold text-lg">{p.match}</div>
+              <div className="text-gray-400 text-sm mb-3">{p.selection}</div>
+              <div className="flex items-center justify-between">
+                <span className="text-2xl font-black text-gold">{p.odds.toFixed(2)}</span>
+                {locked ? (
+                  <button onClick={renew} className="glass px-5 rounded-xl font-black tap-target flex items-center gap-2 border border-gold/40 text-gold">
+                    <Lock size={16} /> Renouveler pour voir
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => copyText(p.couponCode, 'Code coupon 1xBet copié !')}
+                    className="gold-gradient text-black px-5 rounded-xl font-black tap-target flex items-center gap-2 hover:scale-[1.03] transition"
+                  >
+                    <Copy size={16} /> Copier le code
+                  </button>
+                )}
+              </div>
             </div>
-            <div className="font-bold text-lg">{p.match}</div>
-            <div className="text-gray-400 text-sm mb-3">{p.selection}</div>
-            <div className="flex items-center justify-between">
-              <span className="text-2xl font-black text-gold">{p.odds.toFixed(2)}</span>
-              {locked ? (
-                <button onClick={renew} className="glass px-5 rounded-xl font-black tap-target flex items-center gap-2 border border-gold/40 text-gold">
-                  <Lock size={16} /> Renouveler pour voir
-                </button>
-              ) : (
-                <button
-                  onClick={() => copyText(p.couponCode, 'Code coupon 1xBet copié !')}
-                  className="gold-gradient text-black px-5 rounded-xl font-black tap-target flex items-center gap-2 hover:scale-[1.03] transition"
-                >
-                  <Copy size={16} /> Copier le code
-                </button>
-              )}
+          ))}
+          {!current.length && (
+            <p className="text-gray-500 text-sm col-span-2">
+              Aucune opportunité active pour le moment. Le moteur d’analyse pousse les coups dès
+              qu’une valeur est détectée.
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* ── Section 2 : matchs passés + résultats (repliable, fermée par défaut) ── */}
+      <button
+        onClick={() => setShowPast((v) => !v)}
+        className="w-full glass rounded-2xl px-5 py-4 flex items-center justify-between tap-target"
+      >
+        <span className="flex items-center gap-2 text-xl font-black">
+          <History className="text-electric" /> Matchs passés & résultats
+          <span className="text-xs font-bold text-white bg-white/10 rounded-full px-2 py-0.5">{past.length}</span>
+          {pastGraded > 0 && (
+            <span className="text-xs font-bold text-live">
+              {pastWon}/{pastGraded} gagnés ({Math.round((100 * pastWon) / pastGraded)}%)
+            </span>
+          )}
+        </span>
+        <ChevronDown className={`text-electric transition-transform ${showPast ? 'rotate-180' : ''}`} />
+      </button>
+
+      {showPast && (
+        <div className="grid md:grid-cols-2 gap-5">
+          {past.map((p) => (
+            <div
+              key={p.id}
+              className={`glass rounded-2xl p-5 border-l-4 relative overflow-hidden opacity-90 ${
+                p.result === 'won' ? 'border-live' : p.result === 'lost' ? 'border-red-500' : 'border-gray-500'
+              }`}
+            >
+              <div className="flex justify-between items-start mb-2">
+                <span className="text-[10px] uppercase tracking-widest text-gray-400">
+                  {sportLabel[p.sport] || p.sport} · {p.market}
+                  {p.eventDate ? ` · ${p.eventDate}` : ''}
+                </span>
+                {p.result === 'won' ? (
+                  <span className="text-xs font-black text-live flex items-center gap-1"><CheckCircle2 size={14} /> Gagné</span>
+                ) : p.result === 'lost' ? (
+                  <span className="text-xs font-black text-red-400 flex items-center gap-1"><XCircle size={14} /> Perdu</span>
+                ) : (
+                  <span className="text-xs font-black text-gray-400">Annulé</span>
+                )}
+              </div>
+              <div className="font-bold text-lg">{p.match}</div>
+              <div className="text-gray-400 text-sm">{p.selection}</div>
+              <div className="flex items-center justify-between mt-3">
+                <span className="text-2xl font-black text-gold/80">{p.odds.toFixed(2)}</span>
+                {p.resultNote && <span className="text-sm text-gray-300 font-bold">{p.resultNote}</span>}
+              </div>
             </div>
-          </div>
-        ))}
-        {!feed.length && (
-          <p className="text-gray-500 text-sm col-span-2">
-            Aucune opportunité active pour le moment. Le moteur d’analyse pousse les coups dès
-            qu’une valeur est détectée.
-          </p>
-        )}
-      </div>
+          ))}
+          {!past.length && (
+            <p className="text-gray-500 text-sm col-span-2">
+              Aucun match passé pour l’instant — les résultats apparaissent ici automatiquement
+              chaque nuit, une fois les matchs joués et notés par le moteur.
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }
