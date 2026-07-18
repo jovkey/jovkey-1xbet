@@ -16,6 +16,7 @@ import { MediaModule } from './media/media.module';
 import { StatsModule } from './stats/stats.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { CheckoutModule } from './checkout/checkout.module';
 import { HealthController } from './health/health.controller';
 
 @Module({
@@ -40,6 +41,7 @@ import { HealthController } from './health/health.controller';
     PredictionsModule,
     InvestmentsModule,
     PaymentsModule,
+    CheckoutModule,
     MediaModule,
     StatsModule,
   ],

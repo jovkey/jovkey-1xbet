@@ -73,6 +73,18 @@ enum WithdrawalStatus {
   paid
 }
 
+// ── Paiement Mobile Money « DIY » (réconciliation par SMS) ──
+enum TxStatus {
+  pending    // le client a déclaré son envoi, on attend le SMS de réception
+  completed  // SMS reçu + concordance stricte → produit débloqué
+  failed
+}
+
+enum ReceiverNetwork {
+  MOOV     // puces Moov Togo
+  TOGOCEL  // puce T-Money Togo
+}
+
 /// Un utilisateur "lambda" anonyme n'a AUCUN compte : seuls gold/investor/admin existent.
 model User {
   id                  String       @id @default(cuid())
@@ -119,6 +131,7 @@ model User {
   payments      Payment[]
   withdrawals   Withdrawal[]
   notifications Notification[]
+  transactions  Transaction[]
 
   @@index([role])
   @@index([statusFlash])
@@ -347,4 +360,50 @@ model EngineMemory {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("engine_memory")
+}
+
+/// Paiement Mobile Money « DIY » : le client envoie l'argent vers une puce relais,
+/// déclare son envoi, et un SMS de réception (relayé par le téléphone Listener) valide
+/// automatiquement. L'ANCRE de réconciliation est le trio identique des deux côtés :
+/// numéro expéditeur + montant + puce réceptrice (le TxID opérateur diffère souvent
+/// entre l'expéditeur et le destinataire, on ne s'y fie donc pas comme clé).
+model Transaction {
+  id              String          @id @default(cuid())
+  txId            String?         @map("tx_id")               // ID du reçu côté client (audit seulement, peut être null)
+  amount          Decimal         @db.Decimal(12, 2)          // montant ATTENDU (imposé serveur pour Gold)
+  senderPhone     String          @map("sender_phone")        // numéro d'envoi déclaré par le client
+  senderName      String?         @map("sender_name")         // nom/prénom (surtout envois internationaux)
+  receiverNetwork ReceiverNetwork @map("receiver_network")
+  receiverPhone   String          @map("receiver_phone")      // puce précise assignée (répartition multi-SIM)
+  status          TxStatus        @default(pending)
+  purpose         PaymentPurpose                              // gold_subscription | investor_deposit
+  failureReason   String?         @map("failure_reason")
+  userId          String          @map("user_id")
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt       DateTime        @default(now()) @map("created_at")
+  completedAt     DateTime?       @map("completed_at")
+
+  @@index([status])
+  @@index([userId])
+  @@index([receiverPhone, senderPhone, amount, status]) // requête de réconciliation
+  @@map("transactions")
+}
+
+/// SMS de réception encaissé par le webhook mais qui n'a (encore) aucune transaction
+/// `pending` correspondante — cas « le SMS arrive avant que le client ait cliqué Valider ».
+/// On le garde ici pour réconciliation différée : au prochain init client concordant,
+/// on valide immédiatement puis on marque `consumed`.
+model InboundSms {
+  id              String          @id @default(cuid())
+  txId            String?         @map("tx_id")
+  amount          Decimal         @db.Decimal(12, 2)
+  senderPhone     String          @map("sender_phone")
+  receiverNetwork ReceiverNetwork @map("receiver_network")
+  receiverPhone   String          @map("receiver_phone")
+  raw             String?                                     // texte brut du SMS (audit)
+  consumed        Boolean         @default(false)             // déjà rattaché à une transaction ?
+  receivedAt      DateTime        @default(now()) @map("received_at")
+
+  @@index([consumed, receiverPhone, senderPhone, amount])
+  @@map("inbound_sms")
 }

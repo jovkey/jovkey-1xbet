@@ -42,10 +42,49 @@ export class PaymentsService {
    * abonnement. Un membre garde donc à vie le prix auquel il s'est engagé au départ,
    * même si le tarif public change ensuite pour les nouveaux clients.
    */
-  private async goldPriceFor(userId: string): Promise<number> {
+  async goldPriceFor(userId: string): Promise<number> {
     const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { goldLockedPrice: true } });
     if (user?.goldLockedPrice != null) return Number(user.goldLockedPrice);
     return this.baseGoldPrice();
+  }
+
+  /**
+   * Active (ou prolonge) un abonnement Gold pour un montant réellement payé — logique
+   * partagée par la validation FedaPay ET la réconciliation Mobile Money « DIY », pour
+   * qu'un seul et même code décide de la durée et du verrou de prix (pas de doublon).
+   * Renouvellement : +30j depuis la fin courante si pas encore expirée, sinon depuis
+   * maintenant. Verrou de prix posé au tout premier paiement validé.
+   */
+  async applyGoldActivation(userId: string, paidAmount: number) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { subscriptionEndsAt: true, goldLockedPrice: true },
+    });
+    const base = user?.subscriptionEndsAt && user.subscriptionEndsAt > new Date() ? user.subscriptionEndsAt : new Date();
+    const subscriptionEndsAt = new Date(base.getTime() + GOLD_SUBSCRIPTION_DAYS * 24 * 60 * 60 * 1000);
+    const goldLockedPrice = user?.goldLockedPrice == null ? paidAmount : undefined;
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { accountStatus: 'active', subscriptionEndsAt, ...(goldLockedPrice != null ? { goldLockedPrice } : {}) },
+    });
+    return { subscriptionEndsAt };
+  }
+
+  /**
+   * Enregistre un dépôt investisseur confirmé par SMS : on suit le MÊME pipeline que la
+   * recharge existante (montant placé « sous analyse », l'admin décide ensuite qui est
+   * investi ce cycle, cf. §3) — la seule différence est que l'argent est déjà arrivé.
+   */
+  async creditInvestorDeposit(userId: string, amount: number, reference: string) {
+    const payment = await this.prisma.payment.create({
+      data: { userId, amount, currency: 'XOF', method: 'moov', purpose: 'investor_deposit', status: 'pending', reference },
+    });
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { balanceUnderAnalysis: { increment: amount } },
+    });
+    this.realtime.emit({ type: 'payment.new', data: { userId, purpose: 'investor_deposit' } });
+    return payment;
   }
 
   /**
@@ -231,25 +270,12 @@ export class PaymentsService {
     const amount = Number(payment.amount);
 
     if (payment.purpose === 'gold_subscription') {
-      const user = await this.prisma.user.findUnique({ where: { id: payment.userId } });
-      // Renouvellement : +30 jours à partir de la fin d'abonnement courante si elle n'est pas
-      // encore expirée (renouvellement anticipé), sinon à partir de maintenant.
-      const base = user?.subscriptionEndsAt && user.subscriptionEndsAt > new Date() ? user.subscriptionEndsAt : new Date();
-      const subscriptionEndsAt = new Date(base.getTime() + GOLD_SUBSCRIPTION_DAYS * 24 * 60 * 60 * 1000);
-      // Premier paiement Gold validé : on verrouille le prix payé pour tous les
-      // renouvellements futurs de ce membre, quoi qu'il arrive au tarif public ensuite.
-      const goldLockedPrice = user?.goldLockedPrice == null ? amount : undefined;
-
-      await this.prisma.$transaction([
-        this.prisma.payment.update({
-          where: { id },
-          data: { status: 'validated', reviewedAt: new Date() },
-        }),
-        this.prisma.user.update({
-          where: { id: payment.userId },
-          data: { accountStatus: 'active', subscriptionEndsAt, ...(goldLockedPrice != null ? { goldLockedPrice } : {}) },
-        }),
-      ]);
+      await this.prisma.payment.update({
+        where: { id },
+        data: { status: 'validated', reviewedAt: new Date() },
+      });
+      // Activation Gold mutualisée (durée + verrou de prix) — même code que la voie SMS.
+      await this.applyGoldActivation(payment.userId, amount);
     } else {
       // investor_deposit : sous analyse → gelé + investissement actif
       const cycle = this.currentCycle();
