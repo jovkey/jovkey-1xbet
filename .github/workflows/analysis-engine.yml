@@ -1,0 +1,38 @@
+# Déclenchement planifié du moteur d'analyse hébergé sur Render (plan gratuit).
+#
+# POURQUOI : le planificateur interne du moteur (server.py) ne peut tourner que si le
+# process est éveillé à 00:00/06:00 UTC pile. Or Render (gratuit) endort le service
+# après ~15 min sans requête → le passage de minuit ne s'exécutait jamais : pronostics
+# jamais notés, jamais archivés, aucune nouvelle analyse. Ici, GitHub Actions appelle
+# directement la route /trigger du moteur : la requête HTTP réveille le service Render
+# (démarrage à froid ~1 min, d'où les retries), puis le run se lance en arrière-plan.
+#
+# PRÉREQUIS (une fois) : créer le secret ANALYSIS_API_KEY dans
+# GitHub → Settings → Secrets and variables → Actions, avec la même valeur que la
+# variable ANALYSIS_API_KEY du service analysis-engine sur Render.
+name: analysis-engine
+on:
+  schedule:
+    - cron: '10 0 * * *'  # 00:10 UTC — notation de la veille + prédictions du lendemain
+    - cron: '10 6 * * *'  # 06:10 UTC — re-vérification des prédictions du jour
+  workflow_dispatch: {}
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Déclencher le moteur
+        env:
+          KEY: ${{ secrets.ANALYSIS_API_KEY }}
+        run: |
+          if [ -z "$KEY" ]; then
+            echo "::error::Secret ANALYSIS_API_KEY manquant (GitHub → Settings → Secrets → Actions)."
+            exit 1
+          fi
+          # 00:xx → evening (grade + report + predict lendemain) ; 06:xx → predict (re-vérification).
+          HOUR=$(date -u +%H)
+          if [ "$HOUR" = "06" ]; then CMD=predict; else CMD=evening; fi
+          echo "Déclenchement : cmd=$CMD (heure UTC $HOUR)"
+          curl -sS --fail --max-time 120 --retry 5 --retry-delay 15 --retry-all-errors \
+            -X POST "https://jovkey-1xbet-1.onrender.com/trigger?cmd=$CMD" \
+            -H "X-Analysis-Key: $KEY"

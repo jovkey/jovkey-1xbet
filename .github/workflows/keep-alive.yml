@@ -1,0 +1,18 @@
+# Ping anti-sommeil : réveille le backend Render + la base Neon (auto-suspend
+# après ~5 min d'inactivité) pour qu'un client réel ne tombe jamais sur une
+# inscription/connexion en erreur pendant un réveil à froid.
+# NB : cron GitHub Actions = résolution 5 min minimum, parfois quelques minutes
+# de retard — suffisant pour garder la base chaude la plupart du temps.
+name: keep-alive
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping backend health (réveille Render + Neon)
+        run: |
+          curl -sS --max-time 60 --retry 2 https://jovkey-1xbet.onrender.com/api/health || true
