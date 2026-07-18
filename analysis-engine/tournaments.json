@@ -1,5 +1,5 @@
 {
-  "_comment": "Compétitions suivies. La saison COURANTE est résolue automatiquement via get-seasons (pas besoin de saisir seasonId). 'big' = priorité ; 'fallback' = utilisé seulement si aucun grand match ce jour-là. tournamentId = uniqueTournament Sofascore.",
+  "_comment": "Compétitions suivies. La saison COURANTE est résolue automatiquement via get-seasons (pas besoin de saisir seasonId). 'big' = priorité (traités d'abord) ; 'fallback' = complète TOUJOURS jusqu'à la limite de matchs du jour (plus seulement quand big est vide). L'ordre dans chaque liste = ordre de priorité. tournamentId = uniqueTournament Sofascore, chaque ID vérifié via /tournaments/detail.",
   "big": [
     { "name": "Coupe du Monde", "tournamentId": 16 },
     { "name": "Ligue des Champions", "tournamentId": 7 },
@@ -13,13 +13,30 @@
   "fallback": [
     { "name": "Eredivisie", "tournamentId": 37 },
     { "name": "Primeira Liga", "tournamentId": 238 },
-    { "name": "Championship", "tournamentId": 18 },
+    { "name": "Süper Lig (Turquie)", "tournamentId": 52 },
+    { "name": "Pro League (Belgique)", "tournamentId": 38 },
+    { "name": "Superliga (Danemark)", "tournamentId": 39 },
+    { "name": "Bundesliga (Autriche)", "tournamentId": 45 },
+    { "name": "Super League (Suisse)", "tournamentId": 215 },
+    { "name": "Premiership (Écosse)", "tournamentId": 36 },
+    { "name": "Premier League (Russie)", "tournamentId": 203 },
+    { "name": "Premier League (Ukraine)", "tournamentId": 218 },
+    { "name": "Premier Division (Irlande)", "tournamentId": 192 },
     { "name": "Brésil Serie A", "tournamentId": 325 },
+    { "name": "Liga Profesional (Argentine)", "tournamentId": 155 },
     { "name": "MLS", "tournamentId": 242 },
     { "name": "J1 League (Japon)", "tournamentId": 196 },
     { "name": "K League 1 (Corée du Sud)", "tournamentId": 410 },
     { "name": "Allsvenskan (Suède)", "tournamentId": 40 },
-    { "name": "Eliteserien (Norvège)", "tournamentId": 20 }
+    { "name": "Eliteserien (Norvège)", "tournamentId": 20 },
+    { "name": "Championship (Angleterre D2)", "tournamentId": 18 },
+    { "name": "League One (Angleterre D3)", "tournamentId": 24 },
+    { "name": "Ligue 2 (France D2)", "tournamentId": 182 },
+    { "name": "2. Bundesliga (Allemagne D2)", "tournamentId": 44 },
+    { "name": "Serie B (Italie D2)", "tournamentId": 53 },
+    { "name": "LaLiga 2 (Espagne D2)", "tournamentId": 54 },
+    { "name": "Eerste Divisie (Pays-Bas D2)", "tournamentId": 131 },
+    { "name": "Brésil Serie B", "tournamentId": 390 }
   ],
   "_comment_scored": "Basket/hockey (vainqueur + total points/buts) — IDs vérifiés en direct via /tournaments/get-seasons (voir DEPLOY.md). Vide en intersaison (juillet-septembre pour NBA/NHL) : aucun match inventé, on n'affiche simplement rien ce jour-là. WNBA ajoutée : seule grande ligue basket active en plein été (mai-septembre). Aucune ligue de hockey professionnelle majeure n'est active en juillet dans le monde (saisons Nord = sept-avril) — rien à ajouter honnêtement pour ce sport en cette saison.",
   "scored": {

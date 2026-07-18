@@ -317,13 +317,19 @@ def _tournaments_config() -> dict:
     return json.loads(cfg_path.read_text(encoding="utf-8")) if cfg_path.exists() else {}
 
 
-def sofa_auto_matchids(date: str | None, kind: str, limit: int = 14) -> list[int]:
-    """matchId des grands championnats ; repli sur les petits ; sinon matchs en direct."""
+def sofa_auto_matchids(date: str | None, kind: str, limit: int = 18) -> list[int]:
+    """
+    matchId football du jour : grands championnats D'ABORD (priorité), puis on COMPLÈTE
+    TOUJOURS avec les autres championnats (D1 secondaires + D2) jusqu'à `limit` — et non
+    plus seulement quand aucun grand match n'existe. Sinon, un seul match de Coupe du
+    Monde suffisait à masquer toute une journée de championnats actifs (Brésil, MLS,
+    Scandinavie…) : quasiment aucune analyse football certains jours.
+    """
     cfg = _tournaments_config()
     ids = _collect_from(cfg.get("big", []), date, kind, limit)
-    if not ids and cfg.get("fallback"):
-        print("   (aucun grand match aujourd'hui → repli sur les petits championnats)")
-        ids = _collect_from(cfg.get("fallback", []), date, kind, limit)
+    if len(ids) < limit and cfg.get("fallback"):
+        extra = _collect_from(cfg.get("fallback", []), date, kind, limit - len(ids))
+        ids += [i for i in extra if i not in ids]
     if not ids:
         print("   (rien de programmé → matchs en direct)")
         ids = sofa_live_matchids(limit)
@@ -406,6 +412,10 @@ def analyze_sofa(match_id: int, mem: dict):
         form_src = "Forme indisponible — repli sur l'historique H2H."
 
     bias = mem.get("bias", {})
+    # Biais appris PAR CHAMPIONNAT : chaque ligue a son profil (certaines produisent
+    # beaucoup plus de buts/cartons, d'autres sont fermées) — la précision observée
+    # par championnat (league_accuracy, mise à jour à la notation) module la confiance.
+    league_bias = mem.get("league_bias", {}).get(tour, 0.0)
     candidates = [
         ("Résultat 1X2", f"{home} gagne", p_home, "1x2_home"),
         ("Résultat 1X2", f"{away} gagne", p_away, "1x2_away"),
@@ -413,7 +423,7 @@ def analyze_sofa(match_id: int, mem: dict):
         ("Les deux marquent", "Oui", p_btts, "btts"),
     ]
     market, selection, prob, gtype = max(candidates, key=lambda c: c[2] + bias.get(c[3], 0.0))
-    prob_adj = max(0.08, min(0.92, prob + bias.get(gtype, 0.0)))
+    prob_adj = max(0.08, min(0.92, prob + bias.get(gtype, 0.0) + league_bias))
     odds = round(1.0 / prob_adj * 1.08, 2)
     value = round(prob_adj - 1.0 / odds, 4)
     reliability = int(max(40, min(92, prob_adj * 100)))
@@ -715,7 +725,7 @@ def save_memory(mem: dict):
 
 
 def learn(mem: dict):
-    """Ajuste les biais de confiance par marché à partir de la précision observée."""
+    """Ajuste les biais de confiance par marché ET par championnat à partir de la précision observée."""
     lessons = []
     for market, acc in mem["market_accuracy"].items():
         total = acc["total"]
@@ -729,6 +739,20 @@ def learn(mem: dict):
         elif rate > 0.62:
             mem["bias"][market] = round(min(0.10, old + 0.02), 3)
             lessons.append(f"Marché « {market} » fiable ({rate*100:.0f}%/{total}) → confiance renforcée.")
+    # Par championnat : chaque ligue a son profil de jeu — on renforce la confiance là où
+    # le modèle lit bien la ligue, on la réduit là où il se trompe souvent.
+    for league, acc in mem.get("league_accuracy", {}).items():
+        total = acc["total"]
+        if total < 3:
+            continue
+        rate = acc["won"] / total
+        old = mem.setdefault("league_bias", {}).get(league, 0.0)
+        if rate < 0.5:
+            mem["league_bias"][league] = round(max(-0.12, old - 0.03), 3)
+            lessons.append(f"Championnat « {league} » difficile à lire ({rate*100:.0f}%/{total}) → prudence accrue.")
+        elif rate > 0.62:
+            mem["league_bias"][league] = round(min(0.08, old + 0.02), 3)
+            lessons.append(f"Championnat « {league} » bien lu ({rate*100:.0f}%/{total}) → confiance renforcée.")
     mem["lessons"] = lessons[-12:]
 
 
@@ -845,6 +869,13 @@ def cmd_grade(date: str | None = None):
         acc = mem["market_accuracy"].setdefault(p.get("market", "?"), {"won": 0, "total": 0})
         acc["total"] += 1
         acc["won"] += 1 if ok else 0
+        # Précision PAR CHAMPIONNAT (le championnat voyage dans analysis.championnat) :
+        # alimente league_bias via learn() → confiance modulée ligue par ligue.
+        league = ((p.get("analysis") or {}).get("championnat") or "").strip()
+        if league:
+            lacc = mem.setdefault("league_accuracy", {}).setdefault(league, {"won": 0, "total": 0})
+            lacc["total"] += 1
+            lacc["won"] += 1 if ok else 0
         try:
             _post(f"/predictions/{p['id']}/result",
                   {"result": "won" if ok else "lost", "note": f"score {res['label']}"})
@@ -890,6 +921,11 @@ def cmd_report():
     for m, acc in sorted(mem["market_accuracy"].items()):
         r = round(100 * acc["won"] / acc["total"]) if acc["total"] else 0
         print(f"  {m:20} {acc['won']}/{acc['total']} ({r}%)  biais={mem['bias'].get(m, 0)}")
+    if mem.get("league_accuracy"):
+        print("Par championnat :")
+        for lg, acc in sorted(mem["league_accuracy"].items(), key=lambda kv: -kv[1]["total"]):
+            r = round(100 * acc["won"] / acc["total"]) if acc["total"] else 0
+            print(f"  {lg:32} {acc['won']}/{acc['total']} ({r}%)  biais={mem.get('league_bias', {}).get(lg, 0)}")
     print("Leçons actuelles :")
     for l in mem.get("lessons", []):
         print(f"   • {l}")

@@ -131,7 +131,9 @@ export class PredictionsService {
   pendingGrading() {
     return this.prisma.prediction.findMany({
       where: { result: 'pending', extMatchId: { not: null } },
-      select: { id: true, extMatchId: true, gradeType: true, market: true, match: true, eventDate: true },
+      // `analysis` inclus : contient `championnat`, dont le moteur a besoin pour
+      // l'apprentissage par ligue (league_accuracy/league_bias).
+      select: { id: true, extMatchId: true, gradeType: true, market: true, match: true, eventDate: true, analysis: true },
       orderBy: { createdAt: 'asc' },
       take: 500,
     });
