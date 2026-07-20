@@ -5,12 +5,16 @@ import { JwtAuthGuard } from '../common/jwt-auth.guard';
 import { CurrentUser, AuthUser } from '../common/current-user.decorator';
 import { DeviceTokenGuard } from './device-token.guard';
 import { CheckoutService } from './checkout.service';
+import { ChariowService } from './chariow.service';
 import { CheckoutInitDto, SmsWebhookDto } from './dto';
 
 @ApiTags('checkout')
 @Controller('checkout')
 export class CheckoutController {
-  constructor(private checkout: CheckoutService) {}
+  constructor(
+    private checkout: CheckoutService,
+    private chariow: ChariowService,
+  ) {}
 
   /** Puces actives à afficher au client (par réseau). Public : aucune donnée sensible. */
   @Get('receivers')
@@ -40,5 +44,29 @@ export class CheckoutController {
   @UseGuards(DeviceTokenGuard)
   webhook(@Body() dto: SmsWebhookDto) {
     return this.checkout.reconcile(dto);
+  }
+
+  // ── Chariow (Pack Gold « Paiement rapide ») ──────────────────────────
+
+  /**
+   * Webhook Chariow « vente réussie ». Non gardé par JWT (appel serveur-à-serveur), mais
+   * la sécurité vient de la REVÉRIFICATION via l'API Chariow dans le service : un faux
+   * appel ne peut rien débloquer car on confirme la vente auprès de Chariow lui-même.
+   */
+  @Post('chariow/webhook')
+  chariowWebhook(@Body() body: any) {
+    return this.chariow.handleWebhook(body);
+  }
+
+  /**
+   * Page de retour après paiement Chariow (redirect_url=…?sale={sale_id}) : le client
+   * revient connecté, on revérifie la vente et on active si elle est bien payée. Filet en
+   * plus du webhook (si celui-ci a du retard).
+   */
+  @Get('chariow/status/:saleId')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  chariowStatus(@Param('saleId') saleId: string) {
+    return this.chariow.activateFromSale(saleId);
   }
 }
