@@ -258,4 +258,30 @@ export class InvestmentsService {
       message: `${candidates.length} investisseur(s) marqué(s) éligibles au repêchage prioritaire.`,
     };
   }
+
+  // ── Prospects investisseurs ────────────────────────────────────────
+  /** Enregistre l'intérêt d'un investisseur (rien n'est perdu) + prévient l'admin en direct. */
+  async createContactLead(userId: string, contact?: string, note?: string) {
+    const lead = await this.prisma.investorLead.create({
+      data: { userId, contact: contact?.trim() || null, note: note?.trim() || null, status: 'new' },
+    });
+    this.realtime.emit({ type: 'investor.lead', data: { id: lead.id } });
+    return { ok: true, id: lead.id };
+  }
+
+  /** Admin : liste des prospects, avec l'identité du membre (ID 1xBet, WhatsApp, email). */
+  listLeads() {
+    return this.prisma.investorLead.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 300,
+      include: { user: { select: { id1xbet: true, whatsappNum: true, email: true, country: true } } },
+    });
+  }
+
+  async setLeadStatus(id: string, status: string) {
+    const allowed = ['new', 'contacted', 'done'];
+    if (!allowed.includes(status)) throw new BadRequestException('Statut invalide.');
+    await this.prisma.investorLead.update({ where: { id }, data: { status } });
+    return { ok: true };
+  }
 }

@@ -132,6 +132,7 @@ model User {
   withdrawals   Withdrawal[]
   notifications Notification[]
   transactions  Transaction[]
+  investorLeads InvestorLead[]
 
   @@index([role])
   @@index([statusFlash])
@@ -195,6 +196,22 @@ model FlashLead {
 
   @@index([status])
   @@map("flash_leads")
+}
+
+/// Prospect investisseur : enregistré quand un investisseur clique « Contacter
+/// l'administration ». Rien n'est perdu — l'admin a la liste et relance. Le paiement
+/// et le remboursement se discutent ensuite au cas par cas (hors automatisation).
+model InvestorLead {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contact   String?  // numéro/WhatsApp laissé par l'investisseur (optionnel)
+  note      String?  // ex. « je veux investir 100 000 »
+  status    String   @default("new") // new | contacted | done
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([status])
+  @@map("investor_leads")
 }
 
 model Investment {

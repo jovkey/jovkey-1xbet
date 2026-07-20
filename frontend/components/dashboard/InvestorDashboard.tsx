@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import {
-  TrendingUp, Wallet, Star, Lock, Snowflake, Hourglass, Plus, ArrowDownToLine, X, Bell, Megaphone,
+  TrendingUp, Wallet, Star, Lock, Snowflake, Hourglass, Plus, ArrowDownToLine, X, Bell, Megaphone, MessageCircle,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { showToast } from '@/lib/clipboard';
@@ -104,6 +104,9 @@ export default function InvestorDashboard() {
 
   const [announcement, setAnnouncement] = useState('');
   const [slides, setSlides] = useState<{ id: string; imageUrl: string; caption?: string }[]>([]);
+  // « Contacter l'administration » : activable/désactivable depuis le panel admin (CMS).
+  const [contactEnabled, setContactEnabled] = useState(false);
+  const [contactWhatsapp, setContactWhatsapp] = useState('');
 
   const load = () =>
     api<InvestorDashboardData>('/investments/dashboard', { auth: true }).then(setData).catch(() => {});
@@ -113,9 +116,20 @@ export default function InvestorDashboard() {
       .then((c) => {
         setAnnouncement(c.settings?.investor_announcement?.text || '');
         setSlides((c.slides || []).filter((s) => s.linkTunnel === 'investor'));
+        setContactEnabled(!!c.settings?.investor_contact_enabled?.enabled);
+        setContactWhatsapp(c.settings?.investor_contact_whatsapp?.number || '');
       })
       .catch(() => {});
   }, []);
+
+  // Enregistre le prospect (rien n'est perdu côté admin) puis ouvre WhatsApp pré-rempli.
+  const contactAdmin = async () => {
+    try { await api('/investments/contact', { method: 'POST', auth: true, body: {} }); } catch { /* on ouvre WhatsApp quand même */ }
+    const num = contactWhatsapp.replace(/\D/g, '');
+    const msg = encodeURIComponent('Bonjour, je souhaite investir chez JOVKEY. Pouvez-vous me guider ?');
+    if (num) window.open(`https://wa.me/${num}?text=${msg}`, '_blank');
+    else showToast('Contact enregistré — l’administration te recontactera.');
+  };
   useRealtime((type) => {
     if (['payment.validated', 'payment.rejected', 'withdrawal.paid', 'withdrawal.rejected', 'balance.released'].includes(type)) {
       load();
@@ -221,6 +235,15 @@ export default function InvestorDashboard() {
           <ArrowDownToLine size={18} /> Demander un retrait
         </button>
       </div>
+
+      {/* Contacter l'administration (activable/désactivable depuis l'admin) — pour les
+          pays où le Mobile Money vers nos puces n'est pas possible : accueil au cas par cas. */}
+      {contactEnabled && (
+        <button onClick={contactAdmin}
+          className="w-full glass rounded-2xl font-black tap-target flex items-center justify-center gap-2 py-4 border border-live/40 text-live hover:bg-live/5 transition">
+          <MessageCircle size={18} /> Contacter l’administration pour investir
+        </button>
+      )}
 
       {/* Performance + P&L */}
       <div className="glass rounded-3xl p-6">

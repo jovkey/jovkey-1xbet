@@ -84,4 +84,33 @@ export class InvestmentsController {
   runElasticity() {
     return this.investments.runElasticity();
   }
+
+  // ── Prospects investisseurs (bouton « Contacter l'administration ») ──
+
+  /** Investisseur : enregistre son intérêt puis on l'oriente vers WhatsApp. */
+  @Post('contact')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('investor')
+  contact(@CurrentUser() user: AuthUser, @Body() body: { contact?: string; note?: string }) {
+    return this.investments.createContactLead(user.id, body?.contact, body?.note);
+  }
+
+  /** Admin : liste des prospects investisseurs (avec l'identité du membre). */
+  @Get('leads')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  listLeads() {
+    return this.investments.listLeads();
+  }
+
+  /** Admin : change le statut d'un prospect (new | contacted | done). */
+  @Post('leads/:id/status')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  setLeadStatus(@Param('id') id: string, @Body() body: { status: string }) {
+    return this.investments.setLeadStatus(id, body.status);
+  }
 }

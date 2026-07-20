@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import {
   BarChart3, Megaphone, Images, Film, MessageSquareWarning, Inbox, Users, RefreshCw,
-  CreditCard, ArrowDownToLine, ShieldCheck, LogOut, Menu, Brain, FileText, Upload,
+  CreditCard, ArrowDownToLine, ShieldCheck, LogOut, Menu, Brain, FileText, Upload, HandCoins,
 } from 'lucide-react';
 import { api, apiUpload } from '@/lib/api';
 import { AuthUser } from '@/lib/types';
@@ -11,7 +11,7 @@ import { showToast } from '@/lib/clipboard';
 
 type Tab =
   | 'stats' | 'leads' | 'payments' | 'withdrawals' | 'predictions'
-  | 'marquee' | 'carousel' | 'video' | 'media' | 'texts' | 'reviews' | 'users';
+  | 'marquee' | 'carousel' | 'video' | 'media' | 'texts' | 'reviews' | 'users' | 'investors';
 
 const fmt = (n: number) => `${Math.round(n).toLocaleString('fr-FR')} FCFA`;
 
@@ -20,6 +20,7 @@ const NAV: { group: string; items: { id: Tab; label: string; icon: any }[] }[] =
     { id: 'leads', label: 'Demandes Flash', icon: Inbox },
     { id: 'payments', label: 'Paiements', icon: CreditCard },
     { id: 'withdrawals', label: 'Retraits', icon: ArrowDownToLine },
+    { id: 'investors', label: 'Investisseurs', icon: HandCoins },
   ]},
   { group: 'IA & Pronostics', items: [
     { id: 'predictions', label: 'Prédictions IA', icon: Brain },
@@ -114,6 +115,7 @@ export default function AdminPanel({ user, onLogout }: { user: AuthUser; onLogou
         {tab === 'texts' && <TextsTab />}
         {tab === 'reviews' && <ReviewsTab />}
         {tab === 'users' && <UsersTab superadmin={user.role === 'superadmin'} />}
+        {tab === 'investors' && <InvestorsTab />}
       </section>
     </main>
   );
@@ -337,6 +339,88 @@ function WithdrawalsTab({ onChange }: { onChange: () => void }) {
         </div>
       ))}
       {!items.length && <p className="text-gray-500 text-sm">Aucun retrait en attente.</p>}
+    </div>
+  );
+}
+
+/* ── Investisseurs : interrupteur du bouton contact + n° WhatsApp + prospects ── */
+function InvestorsTab() {
+  const [enabled, setEnabled] = useState(false);
+  const [whatsapp, setWhatsapp] = useState('');
+  const [leads, setLeads] = useState<any[]>([]);
+
+  const load = () => {
+    api('/cms/public').then((c: any) => {
+      setEnabled(!!c.settings?.investor_contact_enabled?.enabled);
+      setWhatsapp(c.settings?.investor_contact_whatsapp?.number || '');
+    }).catch(() => {});
+    api('/investments/leads', { auth: true }).then(setLeads).catch(() => {});
+  };
+  useEffect(() => { load(); }, []);
+
+  const saveEnabled = async (val: boolean) => {
+    setEnabled(val);
+    await api('/cms/settings/investor_contact_enabled', { method: 'PUT', auth: true, body: { value: { enabled: val } } });
+    showToast(val ? 'Bouton « Contacter » activé' : 'Bouton « Contacter » désactivé');
+  };
+  const saveWhatsapp = async () => {
+    await api('/cms/settings/investor_contact_whatsapp', { method: 'PUT', auth: true, body: { value: { number: whatsapp.trim() } } });
+    showToast('Numéro WhatsApp enregistré');
+  };
+  const setStatus = async (id: string, status: string) => {
+    await api(`/investments/leads/${id}/status`, { method: 'POST', auth: true, body: { status } });
+    load();
+  };
+
+  const statusColor: Record<string, string> = {
+    new: 'text-gold border-gold/40', contacted: 'text-electric border-electric/40', done: 'text-live border-live/40',
+  };
+
+  return (
+    <div className="space-y-5">
+      {/* Réglages du canal « Contacter l'administration » */}
+      <div className="glass rounded-2xl p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="font-black">Bouton « Contacter l’administration »</div>
+            <p className="text-xs text-gray-400">Affiché aux investisseurs quand le Mobile Money ne suffit pas (autres pays).</p>
+          </div>
+          <button onClick={() => saveEnabled(!enabled)}
+            className={`w-14 h-8 rounded-full transition relative ${enabled ? 'bg-live' : 'bg-white/15'}`}>
+            <span className={`absolute top-1 w-6 h-6 rounded-full bg-white transition-all ${enabled ? 'left-7' : 'left-1'}`} />
+          </button>
+        </div>
+        <div className="flex flex-col md:flex-row gap-2">
+          <input value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)}
+            placeholder="Numéro WhatsApp (ex. 22890000000)"
+            className="flex-1 glass rounded-xl px-4 py-3 tap-target outline-none focus:border-gold" />
+          <button onClick={saveWhatsapp} className="gold-gradient text-black rounded-xl font-black tap-target px-6">Enregistrer</button>
+        </div>
+      </div>
+
+      {/* Prospects investisseurs enregistrés */}
+      <div>
+        <h3 className="font-black mb-3">Prospects investisseurs ({leads.length})</h3>
+        <div className="space-y-2">
+          {leads.map((l) => (
+            <div key={l.id} className="glass rounded-xl p-4 flex flex-wrap justify-between items-center gap-3">
+              <div>
+                <div className="font-bold">{l.user?.id1xbet || l.user?.email || '—'}</div>
+                <div className="text-xs text-gray-400">
+                  {l.user?.whatsappNum || l.contact || '—'} {l.user?.country ? `· ${l.user.country}` : ''}
+                </div>
+                <div className="text-[11px] text-gray-500">{new Date(l.createdAt).toLocaleString('fr-FR')}{l.note ? ` · ${l.note}` : ''}</div>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className={`text-[10px] uppercase border rounded-full px-2 py-0.5 ${statusColor[l.status] || ''}`}>{l.status}</span>
+                {l.status !== 'contacted' && <button onClick={() => setStatus(l.id, 'contacted')} className="text-electric text-xs font-bold">Contacté</button>}
+                {l.status !== 'done' && <button onClick={() => setStatus(l.id, 'done')} className="text-live text-xs font-bold">Terminé</button>}
+              </div>
+            </div>
+          ))}
+          {!leads.length && <p className="text-gray-500 text-sm">Aucun prospect pour l’instant.</p>}
+        </div>
+      </div>
     </div>
   );
 }
