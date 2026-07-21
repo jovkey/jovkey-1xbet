@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Smartphone, Copy, Loader2, CheckCircle2, XCircle, Clock, Info } from 'lucide-react';
+import { Smartphone, Copy, Loader2, CheckCircle2, XCircle, Clock, Info, Phone } from 'lucide-react';
 import { api } from '@/lib/api';
 import { copyText } from '@/lib/clipboard';
 
@@ -11,29 +11,37 @@ type UiState = 'idle' | 'verifying' | 'completed' | 'failed' | 'timeout';
 interface Receiver { network: Network; phone: string; label: string }
 
 /**
- * Canaux affichés = pays × opérateur. `network` relie au réseau serveur (MOOV/TOGOCEL) ;
- * `intl` distingue l'envoi local Togo (rapide, code simple) de l'envoi international
- * (instructions génériques + nom/prénom obligatoire tant que la syntaxe USSD exacte
- * n'est pas fournie). Les syntaxes internationales précises seront ajoutées ensuite.
+ * Canaux affichés. `network` relie au réseau serveur (MOOV/TOGOCEL).
+ * - Togo : les deux réseaux, avec le code USSD à composer (connu, donc on l'ouvre
+ *   directement dans le clavier du téléphone via un lien `tel:`).
+ * - Étranger : **Moov Money uniquement** — T-Money/Mixx n'existe qu'au Togo, donc un
+ *   client hors du pays ne peut envoyer que sur la puce Moov. On n'invente AUCUNE
+ *   syntaxe USSD internationale (elle varie selon l'opérateur et le pays) : on affiche
+ *   le numéro à copier + les infos à fournir, et le client utilise le menu de transfert
+ *   international de son propre opérateur.
  */
 const CHANNELS: {
-  id: string; country: string; operator: string; network: Network; intl: boolean; steps: string[];
+  id: string; country: string; operator: string; network: Network; intl: boolean;
+  ussd?: string; steps: string[];
 }[] = [
   {
     id: 'tg-moov', country: 'Togo', operator: 'Moov Money', network: 'MOOV', intl: false,
-    steps: ['Compose *855#', 'Choisis « Transfert d’argent »', 'Numéro : le numéro affiché ci-dessus', 'Montant exact', 'Valide avec ton code PIN'],
+    ussd: '*855#',
+    steps: ['Ouvre le clavier avec le bouton ci-dessous (*855#)', 'Choisis « Transfert d’argent »', 'Numéro : celui affiché ci-dessus', 'Montant exact', 'Valide avec ton code PIN'],
   },
   {
-    id: 'tg-tmoney', country: 'Togo', operator: 'Togocel (T-Money)', network: 'TOGOCEL', intl: false,
-    steps: ['Compose *145#', 'Choisis « Transfert d’argent »', 'Numéro : le numéro affiché ci-dessus', 'Montant exact', 'Valide avec ton code PIN'],
+    id: 'tg-tmoney', country: 'Togo', operator: 'Mixx by Yas (T-Money)', network: 'TOGOCEL', intl: false,
+    ussd: '*145#',
+    steps: ['Ouvre le clavier avec le bouton ci-dessous (*145#)', 'Choisis « Transfert d’argent »', 'Numéro : celui affiché ci-dessus', 'Montant exact', 'Valide avec ton code PIN'],
   },
   {
-    id: 'bj-moov', country: 'Bénin', operator: 'Moov (international)', network: 'MOOV', intl: true,
-    steps: ['Fais un transfert Moov international vers le numéro affiché (+228…)', 'Montant EXACT', 'Indique bien ton nom/prénom et ton numéro ci-dessous'],
-  },
-  {
-    id: 'bf-moov', country: 'Burkina Faso', operator: 'Moov (international)', network: 'MOOV', intl: true,
-    steps: ['Fais un transfert Moov international vers le numéro affiché (+228…)', 'Montant EXACT', 'Indique bien ton nom/prénom et ton numéro ci-dessous'],
+    id: 'intl-moov', country: 'Depuis l’étranger', operator: 'Moov Money', network: 'MOOV', intl: true,
+    steps: [
+      'Dans ton application/menu Mobile Money, choisis « Transfert international »',
+      'Destinataire : le numéro Moov Togo affiché ci-dessus (+228…)',
+      'Montant EXACT',
+      'Renseigne ensuite ton nom/prénom et ton numéro d’envoi ci-dessous',
+    ],
   },
 ];
 
@@ -160,11 +168,24 @@ export default function MobileMoneyCheckout({ purpose, amount }: { purpose: Purp
         {amount != null && (
           <p className="mt-2 text-sm font-black text-gold">Montant exact : {amount.toLocaleString('fr-FR')} FCFA</p>
         )}
+
+        {/* Togo : on connaît le code → on ouvre le clavier du téléphone directement.
+            (# doit être encodé en %23 pour que le composeur l'accepte.) */}
+        {channel.ussd && (
+          <a
+            href={`tel:${channel.ussd.replace('#', '%23')}`}
+            className="mt-3 w-full glass rounded-xl py-3 font-black tap-target flex items-center justify-center gap-2 border border-gold/40 text-gold"
+          >
+            <Phone size={16} /> Ouvrir le clavier ({channel.ussd})
+          </a>
+        )}
+
         {channel.intl && (
           <p className="mt-3 text-xs text-electric flex items-start gap-1">
             <Info size={14} className="shrink-0 mt-0.5" />
-            Envoi international : indique impérativement ton nom/prénom et ton numéro d’envoi
-            pour qu’on retrouve ton paiement.
+            Depuis l’étranger, seul <b>Moov Money</b> peut recevoir (Mixx/T-Money n’existe
+            qu’au Togo). Indique impérativement ton <b>nom/prénom</b> et ton <b>numéro d’envoi</b> :
+            c’est ce qui permet de retrouver ton paiement.
           </p>
         )}
       </div>
