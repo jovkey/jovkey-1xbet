@@ -6,6 +6,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { PaymentsService } from '../payments/payments.service';
 import { CheckoutInitDto, SmsWebhookDto } from './dto';
 import { activeReceivers, isKnownActiveReceiver, normalizePhone } from './receivers';
+import { parseSms, isTrustedSmsSender } from './sms-parser';
 
 @Injectable()
 export class CheckoutService {
@@ -120,6 +121,91 @@ export class CheckoutService {
 
     await this.complete(tx, dto.txId);
     return { matched: true, status: 'completed' };
+  }
+
+  /**
+   * SMS BRUT relayé par le téléphone Listener (app de transfert SMS → HTTP).
+   * Applique les barrières anti-falsification avant toute validation :
+   *  (1) token appareil        → garde du controller
+   *  (2) expéditeur officiel   → isTrustedSmsSender (jamais un numéro ordinaire)
+   *  (3) référence unique      → anti-rejeu du même reçu
+   *  (4) continuité du solde   → ancien_solde + montant = nouveau_solde (décisive :
+   *      un faussaire ne connaît pas le solde exact de la puce)
+   *  (5) concordance stricte   → déléguée à reconcile()
+   */
+  async ingestRawSms(params: { text: string; from?: string; receiverPhone: string }) {
+    const receiverPhone = normalizePhone(params.receiverPhone);
+    const account = activeReceivers().find((r) => r.phone === receiverPhone);
+    if (!account) return { ok: true, accepted: false, reason: 'unknown_receiver' };
+
+    // (2) L'expéditeur doit être l'identifiant officiel de l'opérateur.
+    if (!isTrustedSmsSender(params.from)) {
+      this.logger.warn(`SMS rejeté : expéditeur non officiel (${params.from ?? 'inconnu'}).`);
+      return { ok: true, accepted: false, reason: 'untrusted_sender' };
+    }
+
+    const parsed = parseSms(params.text);
+    if (!parsed) return { ok: true, accepted: false, reason: 'unparsable' };
+
+    // (4a) Toujours mettre à jour le solde connu — y compris sur les retraits/débits —
+    // sinon la chaîne se désynchronise et les vrais paiements seraient rejetés à tort.
+    const state = await this.prisma.simState.findUnique({ where: { receiverPhone } });
+    const previousBalance = state?.lastBalance != null ? Number(state.lastBalance) : null;
+    if (parsed.newBalance != null) {
+      await this.prisma.simState.upsert({
+        where: { receiverPhone },
+        update: { lastBalance: parsed.newBalance, lastReference: parsed.reference ?? undefined },
+        create: { receiverPhone, lastBalance: parsed.newBalance, lastReference: parsed.reference ?? null },
+      });
+    }
+
+    // Un débit (retrait) ne valide jamais un paiement : il ne sert qu'au suivi du solde.
+    if (!parsed.isCredit || !parsed.amount || !parsed.senderPhone) {
+      return { ok: true, accepted: false, reason: 'not_a_credit' };
+    }
+
+    // (3) Anti-rejeu : cette référence opérateur a-t-elle déjà été traitée ?
+    if (parsed.reference) {
+      const seen = await this.prisma.inboundSms.findFirst({ where: { txId: parsed.reference } });
+      if (seen) return { ok: true, accepted: false, reason: 'duplicate_reference' };
+    }
+
+    // (4b) Continuité du solde : la barrière décisive.
+    // Première fois (aucun solde connu) → on amorce la chaîne sans bloquer.
+    // Vérification EXACTE au centime : ce sont justement les décimales du solde
+    // (ex. « 7 280,69 ») qu'un faussaire ne peut pas deviner. Une tolérance large
+    // (même 1 FCFA) suffirait à laisser passer un solde arrondi inventé.
+    const balanceOk =
+      previousBalance == null || parsed.newBalance == null
+        ? true
+        : Math.abs(previousBalance + parsed.amount - parsed.newBalance) < 0.01; // marge flottants seulement
+
+    if (!balanceOk) {
+      // On NE valide PAS automatiquement : on archive pour vérification manuelle.
+      await this.prisma.inboundSms.create({
+        data: {
+          txId: parsed.reference, amount: parsed.amount, senderPhone: parsed.senderPhone,
+          receiverNetwork: account.network, receiverPhone, raw: params.text.slice(0, 500),
+          newBalance: parsed.newBalance ?? undefined, balanceOk: false, consumed: false,
+        },
+      });
+      this.logger.warn(
+        `SMS suspect (solde incohérent) : attendu ${previousBalance! + parsed.amount}, reçu ${parsed.newBalance}. ` +
+          `Aucune validation automatique — vérification manuelle requise.`,
+      );
+      return { ok: true, accepted: false, reason: 'balance_mismatch' };
+    }
+
+    // (5) Concordance stricte + validation, via le moteur existant.
+    const r = await this.reconcile({
+      txId: parsed.reference ?? undefined,
+      amount: parsed.amount,
+      senderPhone: parsed.senderPhone,
+      receiverNetwork: account.network,
+      receiverPhone,
+      raw: params.text.slice(0, 500),
+    });
+    return { ok: true, accepted: true, ...r };
   }
 
   /**

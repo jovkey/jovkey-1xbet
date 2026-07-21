@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../common/jwt-auth.guard';
@@ -44,6 +44,25 @@ export class CheckoutController {
   @UseGuards(DeviceTokenGuard)
   webhook(@Body() dto: SmsWebhookDto) {
     return this.checkout.reconcile(dto);
+  }
+
+  /**
+   * SMS BRUT relayé par une app « SMS Forwarder » sur le téléphone Listener.
+   * Corps attendu : { text: "<texte du SMS>", from: "<expéditeur, ex. MoovMoney>" }
+   * et `?receiver=96530302` pour dire SUR QUELLE PUCE le SMS est arrivé (une règle de
+   * transfert par SIM). Le décodage et les 5 barrières de sécurité sont côté serveur.
+   */
+  @Post('webhook/sms-raw')
+  @UseGuards(DeviceTokenGuard)
+  webhookRaw(
+    @Body() body: { text?: string; message?: string; from?: string; sender?: string; receiver?: string },
+    @Query('receiver') receiverQuery?: string,
+  ) {
+    return this.checkout.ingestRawSms({
+      text: body?.text || body?.message || '',
+      from: body?.from || body?.sender,
+      receiverPhone: receiverQuery || body?.receiver || '',
+    });
   }
 
   // ── Chariow (Pack Gold « Paiement rapide ») ──────────────────────────
