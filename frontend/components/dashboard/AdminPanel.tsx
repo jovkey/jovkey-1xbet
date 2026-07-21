@@ -1084,8 +1084,10 @@ function TextsTab() {
   const [fcMsg, setFcMsg] = useState('');
   const [goldAnnounce, setGoldAnnounce] = useState('');
   const [investorAnnounce, setInvestorAnnounce] = useState('');
+  const [chariowLink, setChariowLink] = useState('');
   useEffect(() => {
     api('/cms/public').then((c: any) => {
+      setChariowLink(c.settings?.chariow_gold_link?.url ?? '');
       setPrice(String(c.settings?.gold_price?.amount ?? 5600));
       setPriceLabel(c.settings?.gold_price_label?.text ?? '');
       setLegal(c.settings?.legal_investor?.text ?? '');
@@ -1103,6 +1105,22 @@ function TextsTab() {
   };
   return (
     <div className="space-y-5 max-w-2xl">
+      {/* Lien de paiement rapide Chariow — colle ici le lien du produit Gold de ta boutique.
+          Tant qu'il est vide, le bouton « Paiement rapide » n'apparaît pas côté client. */}
+      <div className="glass rounded-2xl p-6 border border-gold/30">
+        <h3 className="font-black mb-1">Lien « Paiement rapide » (Chariow)</h3>
+        <p className="text-gray-400 text-sm mb-3">
+          Colle le lien du produit Gold de ta boutique Chariow. Le client paiera par carte ou
+          Mobile Money et son accès sera <b>débloqué automatiquement</b>. Laisse vide pour
+          masquer le bouton.
+        </p>
+        <input value={chariowLink} onChange={(e) => setChariowLink(e.target.value)}
+          placeholder="https://xaxjtdyw.mychariow.shop/prd_xxxxxxx"
+          className="w-full glass rounded-xl px-4 mb-3 tap-target outline-none focus:border-gold" />
+        <button onClick={() => saveSetting('chariow_gold_link', { url: chariowLink.trim() }, 'Lien de paiement rapide')}
+          className="gold-gradient text-black rounded-xl font-black tap-target px-6">Enregistrer le lien</button>
+      </div>
+
       <div className="glass rounded-2xl p-6">
         <h3 className="font-black mb-1">Tarif de l&apos;abonnement Gold</h3>
         <p className="text-gray-400 text-sm mb-3">Le <b>montant</b> sert au paiement ; le <b>texte affiché</b> est libre (carte VIP + inscription). Change les deux quand tu changes le prix.</p>

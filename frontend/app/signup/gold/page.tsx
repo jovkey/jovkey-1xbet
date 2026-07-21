@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Crown, ArrowLeft, CreditCard } from 'lucide-react';
+import { Crown, ArrowLeft, CreditCard, Zap } from 'lucide-react';
 import { api } from '@/lib/api';
 import { GOLD_PRICE_XOF, CURRENCY } from '@/lib/config';
 import Navbar from '@/components/Navbar';
@@ -13,19 +13,51 @@ export default function GoldSignupPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [price, setPrice] = useState(GOLD_PRICE_XOF);
+  // Lien Chariow « Paiement rapide » configuré par l'admin (vide = bouton masqué).
+  const [chariowLink, setChariowLink] = useState('');
 
   useEffect(() => {
     api('/cms/public').then((c: any) => {
       const amount = Number(c.settings?.gold_price?.amount);
       if (amount > 0) setPrice(amount);
+      setChariowLink(c.settings?.chariow_gold_link?.url || '');
     }).catch(() => {});
   }, []);
+
+  /** Validation commune du formulaire avant toute création de compte. */
+  const validate = () => {
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { setError('Email invalide.'); return false; }
+    if (password.length < 6) { setError('Mot de passe : 6 caractères minimum.'); return false; }
+    return true;
+  };
+
+  /**
+   * Paiement rapide (Chariow) : on crée le compte, puis on envoie le client payer sur la
+   * boutique avec SON email pré-rempli. C'est cet email qui relie le paiement au compte —
+   * le webhook Chariow débloque le Gold automatiquement dès que la vente est confirmée.
+   */
+  const payFast = async () => {
+    setError('');
+    if (!validate()) return;
+    setLoading(true);
+    try {
+      await api('/auth/signup/gold', { method: 'POST', body: { email, password, country } });
+    } catch (err: any) {
+      // Compte déjà existant : ce n'est pas bloquant, il peut quand même payer.
+      if (!/existe|already/i.test(err?.message || '')) {
+        setError(err.message || 'Inscription impossible.');
+        setLoading(false);
+        return;
+      }
+    }
+    const sep = chariowLink.includes('?') ? '&' : '?';
+    window.location.href = `${chariowLink}${sep}email=${encodeURIComponent(email)}`;
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return setError('Email invalide.');
-    if (password.length < 6) return setError('Mot de passe : 6 caractères minimum.');
+    if (!validate()) return;
     setLoading(true);
     try {
       const res = await api<{ paymentUrl?: string }>('/auth/signup/gold', {
@@ -79,8 +111,30 @@ export default function GoldSignupPage() {
         </div>
 
         {error && <p className="text-red-400 text-sm mb-3">{error}</p>}
+
+        {/* Paiement rapide (Chariow) — affiché en premier dès que l'admin a renseigné le lien. */}
+        {chariowLink && (
+          <>
+            <button type="button" disabled={loading} onClick={payFast}
+              className="w-full gold-gradient text-black rounded-xl font-black tap-target disabled:opacity-60 hover:scale-[1.02] transition flex items-center justify-center gap-2 mb-3">
+              <Zap size={18} /> {loading ? 'Redirection…' : `Paiement rapide — ${price.toLocaleString('fr-FR')} ${CURRENCY}`}
+            </button>
+            <p className="text-[11px] text-gray-500 text-center mb-3">
+              Carte bancaire & Mobile Money · accès débloqué automatiquement.
+              <br />Paie bien avec <b className="text-gray-300">l’email saisi ci-dessus</b>.
+            </p>
+            <div className="flex items-center gap-3 mb-3">
+              <span className="h-px bg-white/10 flex-1" />
+              <span className="text-[10px] uppercase tracking-widest text-gray-500">ou</span>
+              <span className="h-px bg-white/10 flex-1" />
+            </div>
+          </>
+        )}
+
         <button disabled={loading}
-          className="w-full gold-gradient text-black rounded-xl font-black tap-target disabled:opacity-60 hover:scale-[1.02] transition flex items-center justify-center gap-2">
+          className={`w-full rounded-xl font-black tap-target disabled:opacity-60 hover:scale-[1.02] transition flex items-center justify-center gap-2 ${
+            chariowLink ? 'glass border border-gold/30 text-gold' : 'gold-gradient text-black'
+          }`}>
           <CreditCard size={18} /> {loading ? 'Redirection vers le paiement…' : `Payer ${price.toLocaleString('fr-FR')} ${CURRENCY}`}
         </button>
         <p className="text-[11px] text-gray-500 mt-4 text-center">
