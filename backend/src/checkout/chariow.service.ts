@@ -37,7 +37,12 @@ export class ChariowService {
   private get apiUrl() { return (process.env.CHARIOW_API_URL || 'https://api.chariow.com/v1').trim().replace(/\/+$/, ''); }
   // Produit Gold : seules les ventes de CE produit débloquent le Gold (sinon acheter
   // n'importe quel autre livre de la boutique activerait l'abonnement). Vide = pas de filtre.
-  private get goldProductId() { return (process.env.CHARIOW_GOLD_PRODUCT_ID || '').trim(); }
+  // Tolérant : accepte aussi bien "prd_xxx" que le lien complet "https://.../prd_xxx"
+  // (erreur de copier-coller fréquente) — on en extrait l'identifiant produit.
+  private get goldProductId() {
+    const raw = (process.env.CHARIOW_GOLD_PRODUCT_ID || '').trim();
+    return raw.match(/prd_[A-Za-z0-9]+/)?.[0] ?? raw;
+  }
 
   /** Revérifie une vente auprès de Chariow. Renvoie null si introuvable / clé absente. */
   async verifySale(saleId: string): Promise<VerifiedSale | null> {
