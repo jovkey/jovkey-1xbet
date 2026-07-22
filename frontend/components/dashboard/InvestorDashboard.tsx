@@ -7,6 +7,7 @@ import { api } from '@/lib/api';
 import { showToast } from '@/lib/clipboard';
 import { PayMethodId, mediaUrl } from '@/lib/config';
 import PaymentMethodPicker from '@/components/PaymentMethodPicker';
+import MobileMoneyCheckout from '@/components/checkout/MobileMoneyCheckout';
 import { InvestorDashboardData } from '@/lib/types';
 import { useRealtime } from '@/lib/useRealtime';
 
@@ -101,6 +102,8 @@ export default function InvestorDashboard() {
   const [reference, setReference] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
+  // Dépôt : une fois le montant confirmé, on passe à l'écran Mobile Money (envoi + déclaration).
+  const [depositAmount, setDepositAmount] = useState(0);
 
   const [announcement, setAnnouncement] = useState('');
   const [slides, setSlides] = useState<{ id: string; imageUrl: string; caption?: string }[]>([]);
@@ -137,30 +140,30 @@ export default function InvestorDashboard() {
   });
 
   const openModal = (m: 'recharge' | 'withdraw') => {
-    setErr(''); setAmount(''); setReference(''); setMethod('mtn'); setModal(m);
+    setErr(''); setAmount(''); setReference(''); setMethod('mtn'); setDepositAmount(0); setModal(m);
   };
 
-  const submit = async () => {
+  // Dépôt : on valide le montant puis on bascule sur l'écran Mobile Money.
+  const confirmDeposit = () => {
     setErr('');
     const amt = Number(amount);
     if (!amt || amt <= 0) return setErr('Montant invalide.');
+    setDepositAmount(amt);
+  };
+
+  // Retrait : demande envoyée à l'admin (validée puis versée manuellement par Mobile Money).
+  const submitWithdraw = async () => {
+    setErr('');
+    const amt = Number(amount);
+    if (!amt || amt <= 0) return setErr('Montant invalide.');
+    if (reference.trim().length < 3) return setErr('Renseignez le numéro de réception.');
     setBusy(true);
     try {
-      if (modal === 'recharge') {
-        // Paiement FedaPay → crédit automatique au retour (webhook + vérification active sur /paiement/retour).
-        const res = await api<{ paymentUrl?: string }>('/payments/fedapay/init', {
-          method: 'POST', auth: true, body: { amount: amt },
-        });
-        if (res.paymentUrl) { window.location.href = res.paymentUrl; return; }
-        setErr('Paiement indisponible pour le moment.');
-      } else {
-        if (reference.trim().length < 3) { setErr('Renseignez le numéro de réception.'); setBusy(false); return; }
-        const res = await api<{ message: string }>('/investments/request-withdrawal', {
-          method: 'POST', auth: true, body: { amount: amt, method, destination: reference },
-        });
-        showToast(res.message);
-        setModal(null); load();
-      }
+      const res = await api<{ message: string }>('/investments/request-withdrawal', {
+        method: 'POST', auth: true, body: { amount: amt, method, destination: reference },
+      });
+      showToast(res.message);
+      setModal(null); load();
     } catch (e: any) {
       setErr(e.message || 'Opération impossible.');
     } finally {
@@ -304,28 +307,55 @@ export default function InvestorDashboard() {
 
       {/* Modale recharge / retrait */}
       {modal && (
-        <div className="fixed inset-0 bg-black/85 z-[100] flex items-end md:items-center justify-center">
+        <div className="fixed inset-0 bg-black/85 z-[100] flex items-end md:items-center justify-center overflow-y-auto py-6">
           <div className="glass w-full max-w-md rounded-t-3xl md:rounded-3xl p-6 relative">
             <button onClick={() => setModal(null)} className="absolute top-4 right-4 text-gray-400 hover:text-white"><X /></button>
             <h3 className="text-2xl font-black mb-1">
               {modal === 'recharge' ? 'Recharger mon capital' : 'Demander un retrait'}
             </h3>
-            <p className="text-gray-400 text-sm mb-5">
-              {modal === 'recharge'
-                ? 'Paiement sécurisé (MTN, Moov, Orange, Wave, carte…). Votre capital est crédité automatiquement dès le paiement confirmé.'
-                : 'Le retrait est validé par l’administration avant versement.'}
-            </p>
-            <label className="block text-xs uppercase tracking-widest text-gray-400 mb-1">Montant (FCFA)</label>
-            <input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="numeric" placeholder="50000"
-              className="w-full glass rounded-xl px-4 mb-4 tap-target outline-none focus:border-gold" />
-            {modal === 'withdraw' && (
-              <PaymentMethodPicker method={method} reference={reference} onMethod={setMethod} onReference={setReference} />
+
+            {/* ── Dépôt : étape 1 (montant) → étape 2 (Mobile Money) ── */}
+            {modal === 'recharge' ? (
+              depositAmount > 0 ? (
+                <>
+                  <p className="text-gray-400 text-sm mb-4">
+                    Envoie <b className="text-gold">{fmt(depositAmount)}</b> via Mobile Money, puis déclare
+                    ton envoi. Ton capital sera placé « sous analyse » dès réception, avant validation.
+                  </p>
+                  <MobileMoneyCheckout purpose="investor_deposit" amount={depositAmount} />
+                  <button onClick={() => setDepositAmount(0)} className="w-full text-gray-400 text-sm mt-4">← Changer le montant</button>
+                </>
+              ) : (
+                <>
+                  <p className="text-gray-400 text-sm mb-5">
+                    Choisis le montant à investir. Tu l’enverras ensuite par Mobile Money.
+                  </p>
+                  <label className="block text-xs uppercase tracking-widest text-gray-400 mb-1">Montant (FCFA)</label>
+                  <input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="numeric" placeholder="50000"
+                    className="w-full glass rounded-xl px-4 mb-4 tap-target outline-none focus:border-gold" />
+                  {err && <p className="text-red-400 text-sm mt-1 mb-2">{err}</p>}
+                  <button onClick={confirmDeposit}
+                    className="w-full gold-gradient text-black rounded-xl font-black tap-target mt-2 hover:scale-[1.02] transition">
+                    Continuer
+                  </button>
+                </>
+              )
+            ) : (
+              <>
+                <p className="text-gray-400 text-sm mb-5">
+                  Le retrait est validé par l’administration, puis versé manuellement par Mobile Money.
+                </p>
+                <label className="block text-xs uppercase tracking-widest text-gray-400 mb-1">Montant (FCFA)</label>
+                <input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="numeric" placeholder="50000"
+                  className="w-full glass rounded-xl px-4 mb-4 tap-target outline-none focus:border-gold" />
+                <PaymentMethodPicker method={method} reference={reference} onMethod={setMethod} onReference={setReference} />
+                {err && <p className="text-red-400 text-sm mt-3">{err}</p>}
+                <button disabled={busy} onClick={submitWithdraw}
+                  className="w-full gold-gradient text-black rounded-xl font-black tap-target mt-4 disabled:opacity-60 hover:scale-[1.02] transition">
+                  {busy ? 'Envoi…' : 'Envoyer la demande'}
+                </button>
+              </>
             )}
-            {err && <p className="text-red-400 text-sm mt-3">{err}</p>}
-            <button disabled={busy} onClick={submit}
-              className="w-full gold-gradient text-black rounded-xl font-black tap-target mt-4 disabled:opacity-60 hover:scale-[1.02] transition">
-              {busy ? 'Redirection…' : modal === 'recharge' ? 'Payer & recharger' : 'Envoyer la demande'}
-            </button>
           </div>
         </div>
       )}
