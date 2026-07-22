@@ -112,7 +112,7 @@ export default function AdminPanel({ user, onLogout }: { user: AuthUser; onLogou
         {tab === 'carousel' && <CarouselTab />}
         {tab === 'video' && <VideoTab />}
         {tab === 'media' && <MediaTab />}
-        {tab === 'texts' && <TextsTab />}
+        {tab === 'texts' && <TextsTab superadmin={user.role === 'superadmin'} />}
         {tab === 'reviews' && <ReviewsTab />}
         {tab === 'users' && <UsersTab superadmin={user.role === 'superadmin'} />}
         {tab === 'investors' && <InvestorsTab />}
@@ -1074,9 +1074,10 @@ function MediaTab() {
 }
 
 /* ── Textes globaux & tarification ──────────────────────── */
-function TextsTab() {
+function TextsTab({ superadmin }: { superadmin: boolean }) {
   const [price, setPrice] = useState('');
   const [priceLabel, setPriceLabel] = useState('');
+  const [fedapayEnabled, setFedapayEnabled] = useState(false);
   const [legal, setLegal] = useState('');
   const [pitch, setPitch] = useState('');
   const [fcTitle, setFcTitle] = useState('');
@@ -1088,6 +1089,7 @@ function TextsTab() {
   useEffect(() => {
     api('/cms/public').then((c: any) => {
       setChariowLink(c.settings?.chariow_gold_link?.url ?? '');
+      setFedapayEnabled(!!c.settings?.fedapay_enabled?.enabled);
       setPrice(String(c.settings?.gold_price?.amount ?? 5600));
       setPriceLabel(c.settings?.gold_price_label?.text ?? '');
       setLegal(c.settings?.legal_investor?.text ?? '');
@@ -1120,6 +1122,28 @@ function TextsTab() {
         <button onClick={() => saveSetting('chariow_gold_link', { url: chariowLink.trim() }, 'Lien de paiement rapide')}
           className="gold-gradient text-black rounded-xl font-black tap-target px-6">Enregistrer le lien</button>
       </div>
+
+      {/* Interrupteur FedaPay — réservé au super-admin. Masqué par défaut : Chariow est le
+          moyen principal. On peut le rallumer en secours d'un clic. */}
+      {superadmin && (
+        <div className="glass rounded-2xl p-6 flex items-center justify-between border border-white/10">
+          <div>
+            <h3 className="font-black mb-1">Paiement FedaPay (secours)</h3>
+            <p className="text-gray-400 text-sm">
+              Masqué par défaut. Active-le seulement si tu veux réafficher le bouton FedaPay
+              sur l&apos;inscription Gold, en plus du paiement rapide.
+            </p>
+          </div>
+          <button onClick={async () => {
+              const val = !fedapayEnabled;
+              setFedapayEnabled(val);
+              await saveSetting('fedapay_enabled', { enabled: val }, val ? 'FedaPay activé' : 'FedaPay masqué');
+            }}
+            className={`w-14 h-8 rounded-full transition relative shrink-0 ml-4 ${fedapayEnabled ? 'bg-live' : 'bg-white/15'}`}>
+            <span className={`absolute top-1 w-6 h-6 rounded-full bg-white transition-all ${fedapayEnabled ? 'left-7' : 'left-1'}`} />
+          </button>
+        </div>
+      )}
 
       <div className="glass rounded-2xl p-6">
         <h3 className="font-black mb-1">Tarif de l&apos;abonnement Gold</h3>

@@ -15,14 +15,21 @@ export default function GoldSignupPage() {
   const [price, setPrice] = useState(GOLD_PRICE_XOF);
   // Lien Chariow « Paiement rapide » configuré par l'admin (vide = bouton masqué).
   const [chariowLink, setChariowLink] = useState('');
+  // FedaPay masqué par défaut ; réactivable par le super-admin depuis le panel.
+  const [fedapayEnabled, setFedapayEnabled] = useState(false);
 
   useEffect(() => {
     api('/cms/public').then((c: any) => {
       const amount = Number(c.settings?.gold_price?.amount);
       if (amount > 0) setPrice(amount);
       setChariowLink(c.settings?.chariow_gold_link?.url || '');
+      setFedapayEnabled(!!c.settings?.fedapay_enabled?.enabled);
     }).catch(() => {});
   }, []);
+
+  // FedaPay ne s'affiche que s'il est explicitement activé, OU s'il n'y a pas encore de
+  // lien Chariow (filet de sécurité : il faut toujours au moins un moyen de paiement).
+  const showFedapay = fedapayEnabled || !chariowLink;
 
   /** Validation commune du formulaire avant toute création de compte. */
   const validate = () => {
@@ -56,6 +63,8 @@ export default function GoldSignupPage() {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // FedaPay masqué → l'envoi du formulaire (touche Entrée) part sur le paiement rapide.
+    if (!showFedapay) return payFast();
     setError('');
     if (!validate()) return;
     setLoading(true);
@@ -123,20 +132,24 @@ export default function GoldSignupPage() {
               Carte bancaire & Mobile Money · accès débloqué automatiquement.
               <br />Paie bien avec <b className="text-gray-300">l’email saisi ci-dessus</b>.
             </p>
-            <div className="flex items-center gap-3 mb-3">
-              <span className="h-px bg-white/10 flex-1" />
-              <span className="text-[10px] uppercase tracking-widest text-gray-500">ou</span>
-              <span className="h-px bg-white/10 flex-1" />
-            </div>
+            {showFedapay && (
+              <div className="flex items-center gap-3 mb-3">
+                <span className="h-px bg-white/10 flex-1" />
+                <span className="text-[10px] uppercase tracking-widest text-gray-500">ou</span>
+                <span className="h-px bg-white/10 flex-1" />
+              </div>
+            )}
           </>
         )}
 
-        <button disabled={loading}
-          className={`w-full rounded-xl font-black tap-target disabled:opacity-60 hover:scale-[1.02] transition flex items-center justify-center gap-2 ${
-            chariowLink ? 'glass border border-gold/30 text-gold' : 'gold-gradient text-black'
-          }`}>
-          <CreditCard size={18} /> {loading ? 'Redirection vers le paiement…' : `Payer ${price.toLocaleString('fr-FR')} ${CURRENCY}`}
-        </button>
+        {showFedapay && (
+          <button disabled={loading}
+            className={`w-full rounded-xl font-black tap-target disabled:opacity-60 hover:scale-[1.02] transition flex items-center justify-center gap-2 ${
+              chariowLink ? 'glass border border-gold/30 text-gold' : 'gold-gradient text-black'
+            }`}>
+            <CreditCard size={18} /> {loading ? 'Redirection vers le paiement…' : `Payer ${price.toLocaleString('fr-FR')} ${CURRENCY}`}
+          </button>
+        )}
         <p className="text-[11px] text-gray-500 mt-4 text-center">
           Déjà membre ? <Link href="/login" className="text-gold underline">Connexion</Link>
         </p>
