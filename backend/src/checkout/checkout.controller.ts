@@ -78,13 +78,13 @@ export class CheckoutController {
   }
 
   /**
-   * Page de retour après paiement Chariow (redirect_url=…?sale={sale_id}) : le client
-   * revient connecté, on revérifie la vente et on active si elle est bien payée. Filet en
-   * plus du webhook (si celui-ci a du retard).
+   * Page de retour après paiement Chariow (lien « instructions après achat » avec
+   * {{saleId}}). PUBLIC volontairement : l'activation se fait par l'email de l'acheteur
+   * (revérifié auprès de Chariow), pas par la session — le client n'a donc pas besoin
+   * d'être déjà connecté en revenant de la boutique. Sûr : seules de vraies ventes
+   * payées activent quelque chose, et c'est idempotent.
    */
   @Get('chariow/status/:saleId')
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
   chariowStatus(@Param('saleId') saleId: string) {
     return this.chariow.activateFromSale(saleId);
   }
