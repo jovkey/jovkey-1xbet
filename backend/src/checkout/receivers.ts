@@ -16,7 +16,10 @@ export interface ReceiverAccount {
 
 export const RECEIVER_ACCOUNTS: ReceiverAccount[] = [
   { id: 'moov-1', network: 'MOOV', phone: '96530302', label: '+228 96 53 03 02', active: true },
-  { id: 'moov-2', network: 'MOOV', phone: '86436058', label: '+228 86 43 60 58', active: true },
+  // 2e puce Moov : à réactiver (active: true) le jour où cette SIM est en place ET qu'une
+  // règle Listener existe pour `?receiver=86436058`. Sinon un client y serait envoyé sans
+  // que le paiement soit capté.
+  { id: 'moov-2', network: 'MOOV', phone: '86436058', label: '+228 86 43 60 58', active: false },
   { id: 'tmoney-1', network: 'TOGOCEL', phone: '71480354', label: '+228 71 48 03 54', active: true },
 ];
 
