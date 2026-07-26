@@ -134,7 +134,10 @@ export default function InvestorDashboard() {
     else showToast('Contact enregistré — l’administration te recontactera.');
   };
   useRealtime((type) => {
-    if (['payment.validated', 'payment.rejected', 'withdrawal.paid', 'withdrawal.rejected', 'balance.released'].includes(type)) {
+    // 'transaction.completed' + 'payment.new' : un dépôt Mobile Money vient d'être
+    // réconcilié → on recharge pour afficher tout de suite le solde « sous analyse ».
+    if (['payment.validated', 'payment.rejected', 'payment.new', 'transaction.completed',
+         'withdrawal.paid', 'withdrawal.rejected', 'balance.released'].includes(type)) {
       load();
     }
   });
