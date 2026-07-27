@@ -42,8 +42,8 @@ export default function TutorialVideo({ video }: { video?: VideoSetting }) {
 
         {/* Lecteur en format mobile (portrait), cadré comme un écran de téléphone */}
         <div className="aspect-[9/16] w-full max-w-[300px] mx-auto rounded-3xl overflow-hidden bg-black border border-white/10 shadow-2xl">
-          {video?.provider === 'cloudinary' && video?.url ? (
-            // URL Cloudinary déjà absolue (secure_url) — pas de préfixe mediaUrl() ici.
+          {(video?.provider === 'cloudinary' || video?.provider === 'external') && video?.url ? (
+            // URL déjà absolue (Cloudinary secure_url ou lien externe) — pas de préfixe mediaUrl().
             <video className="w-full h-full object-cover" src={video.url} controls playsInline />
           ) : video?.provider === 'upload' && video?.url ? (
             // Ancien mode (upload local /uploads) — conservé pour compat des réglages existants.

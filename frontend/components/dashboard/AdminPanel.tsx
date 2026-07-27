@@ -538,8 +538,9 @@ function CarouselTab() {
 
 /* ── Vidéo tuto (YouTube OU upload direct Cloudinary) ─────── */
 function VideoTab() {
-  const [mode, setMode] = useState<'youtube' | 'cloudinary'>('youtube');
+  const [mode, setMode] = useState<'youtube' | 'cloudinary' | 'external'>('youtube');
   const [embedId, setEmbedId] = useState('');
+  const [extUrl, setExtUrl] = useState(''); // lien vidéo direct (Cloudinary ou autre hébergeur)
   const [current, setCurrent] = useState<any>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
@@ -549,6 +550,7 @@ function VideoTab() {
       const v = c.settings?.tutorial_video;
       setCurrent(v);
       if (v?.provider === 'cloudinary' || v?.provider === 'upload') setMode('cloudinary');
+      else if (v?.provider === 'external') { setMode('external'); setExtUrl(v?.url || ''); }
       setEmbedId(v?.embedId || '');
     }).catch(() => {});
   }, []);
@@ -557,6 +559,16 @@ function VideoTab() {
     await api('/cms/settings/tutorial_video', { method: 'PUT', auth: true, body: { value: { provider: 'youtube', embedId } } });
     setCurrent({ provider: 'youtube', embedId });
     showToast('Vidéo YouTube mise à jour (instantané)');
+  };
+
+  // Lien direct : on enregistre l'URL telle quelle. Le site l'affiche dans un lecteur
+  // <video> (fonctionne pour un lien Cloudinary .mp4 ou tout autre fichier vidéo hébergé).
+  const saveExternal = async () => {
+    const url = extUrl.trim();
+    if (!/^https?:\/\//i.test(url)) { showToast('Colle un lien qui commence par http(s)://'); return; }
+    await api('/cms/settings/tutorial_video', { method: 'PUT', auth: true, body: { value: { provider: 'external', url } } });
+    setCurrent({ provider: 'external', url });
+    showToast('Lien vidéo externe défini comme tutoriel');
   };
 
   /**
@@ -603,6 +615,8 @@ function VideoTab() {
 
   const activeLabel = current?.provider === 'cloudinary' || current?.provider === 'upload'
     ? 'Vidéo Cloudinary'
+    : current?.provider === 'external'
+    ? 'Lien direct'
     : (current?.embedId ? 'Lien YouTube' : 'aucune');
 
   return (
@@ -611,12 +625,12 @@ function VideoTab() {
         <span className="text-gray-400">Source active du tutoriel :</span>
         <span className="font-black text-gold">{activeLabel}</span>
       </div>
-      <p className="text-[11px] text-gray-500">⚠️ Définir une source <b>remplace</b> l’autre : YouTube et vidéo Cloudinary ne peuvent pas être actives en même temps.</p>
+      <p className="text-[11px] text-gray-500">⚠️ Définir une source <b>remplace</b> les autres : une seule vidéo de tutoriel active à la fois.</p>
       <div className="glass rounded-xl p-1 flex gap-1">
-        {(['youtube', 'cloudinary'] as const).map((m) => (
+        {(['youtube', 'external', 'cloudinary'] as const).map((m) => (
           <button key={m} onClick={() => setMode(m)}
-            className={`flex-1 rounded-lg py-2 text-sm font-bold capitalize transition ${mode === m ? 'gold-gradient text-black' : 'hover:bg-white/10'}`}>
-            {m === 'youtube' ? 'Lien YouTube' : 'Uploader une vidéo'}
+            className={`flex-1 rounded-lg py-2 text-xs font-bold transition ${mode === m ? 'gold-gradient text-black' : 'hover:bg-white/10'}`}>
+            {m === 'youtube' ? 'Lien YouTube' : m === 'external' ? 'Lien direct' : 'Uploader'}
           </button>
         ))}
       </div>
@@ -627,6 +641,20 @@ function VideoTab() {
           <input value={embedId} onChange={(e) => setEmbedId(e.target.value.replace(/.*[?&]v=|.*youtu\.be\//, '').split('&')[0])}
             placeholder="dQw4w9WgXcQ ou lien complet" className="w-full glass rounded-xl px-4 mb-4 tap-target outline-none focus:border-gold" />
           <button onClick={saveYoutube} className="gold-gradient text-black rounded-xl font-black tap-target px-6">Mettre à jour</button>
+        </div>
+      ) : mode === 'external' ? (
+        <div className="glass rounded-2xl p-6">
+          <label className="block text-xs uppercase tracking-widest text-gray-400 mb-2">Lien vidéo direct</label>
+          <p className="text-sm text-gray-400 mb-3">
+            Colle un lien vidéo direct (Cloudinary, ou tout autre fichier vidéo hébergé,
+            se terminant souvent par <b>.mp4</b>). Il sera lu directement dans le lecteur du site.
+          </p>
+          <input value={extUrl} onChange={(e) => setExtUrl(e.target.value)}
+            placeholder="https://res.cloudinary.com/.../video.mp4" className="w-full glass rounded-xl px-4 mb-4 tap-target outline-none focus:border-gold" />
+          <button onClick={saveExternal} className="gold-gradient text-black rounded-xl font-black tap-target px-6">Définir ce lien</button>
+          {current?.provider === 'external' && current?.url && (
+            <video src={current.url} controls className="w-full rounded-xl mt-4 max-h-56" />
+          )}
         </div>
       ) : (
         <div className="glass rounded-2xl p-6">
