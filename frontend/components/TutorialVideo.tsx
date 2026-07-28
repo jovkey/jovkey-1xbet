@@ -1,5 +1,6 @@
 'use client';
-import { PlayCircle, Gift } from 'lucide-react';
+import { useRef } from 'react';
+import { PlayCircle, Gift, Maximize } from 'lucide-react';
 import { openFunnel } from '@/lib/funnel';
 import { PROMO_CODE, mediaUrl } from '@/lib/config';
 
@@ -16,6 +17,15 @@ interface VideoSetting {
  */
 export default function TutorialVideo({ video }: { video?: VideoSetting }) {
   const embedId = video?.embedId || 'dQw4w9WgXcQ';
+  const playerRef = useRef<HTMLDivElement>(null);
+
+  // Bouton « Plein écran » : agrandit le lecteur (vidéo directe OU iframe YouTube).
+  const plein = () => {
+    const el = playerRef.current;
+    if (el?.requestFullscreen) el.requestFullscreen();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    else if ((el as any)?.webkitRequestFullscreen) (el as any).webkitRequestFullscreen();
+  };
 
   return (
     <section id="tutoriel" className="px-4 max-w-5xl mx-auto mt-12">
@@ -40,23 +50,31 @@ export default function TutorialVideo({ video }: { video?: VideoSetting }) {
           </button>
         </div>
 
-        {/* Lecteur en format mobile (portrait), cadré comme un écran de téléphone */}
-        <div className="aspect-[9/16] w-full max-w-[300px] mx-auto rounded-3xl overflow-hidden bg-black border border-white/10 shadow-2xl">
-          {(video?.provider === 'cloudinary' || video?.provider === 'external') && video?.url ? (
-            // URL déjà absolue (Cloudinary secure_url ou lien externe) — pas de préfixe mediaUrl().
-            <video className="w-full h-full object-cover" src={video.url} controls playsInline />
-          ) : video?.provider === 'upload' && video?.url ? (
-            // Ancien mode (upload local /uploads) — conservé pour compat des réglages existants.
-            <video className="w-full h-full object-cover" src={mediaUrl(video.url)} controls playsInline />
-          ) : (
-            <iframe
-              className="w-full h-full"
-              src={`https://www.youtube.com/embed/${embedId}`}
-              title="Tutoriel création de compte 1xBet avec le code JOVKEY"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-            />
-          )}
+        {/* Lecteur portrait — plus grand sur mobile (max 420px) pour être bien visible. */}
+        <div className="w-full max-w-[420px] mx-auto">
+          <div ref={playerRef} className="aspect-[9/16] w-full rounded-3xl overflow-hidden bg-black border border-white/10 shadow-2xl">
+            {(video?.provider === 'cloudinary' || video?.provider === 'external') && video?.url ? (
+              // URL déjà absolue (Cloudinary secure_url ou lien externe) — pas de préfixe mediaUrl().
+              <video className="w-full h-full object-contain bg-black" src={video.url} controls playsInline />
+            ) : video?.provider === 'upload' && video?.url ? (
+              // Ancien mode (upload local /uploads) — conservé pour compat des réglages existants.
+              <video className="w-full h-full object-contain bg-black" src={mediaUrl(video.url)} controls playsInline />
+            ) : (
+              <iframe
+                className="w-full h-full"
+                src={`https://www.youtube.com/embed/${embedId}`}
+                title="Tutoriel création de compte 1xBet avec le code JOVKEY"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            )}
+          </div>
+          <button
+            onClick={plein}
+            className="w-full mt-3 glass rounded-xl py-3 font-black tap-target flex items-center justify-center gap-2 border border-gold/30 text-gold hover:bg-white/5 transition"
+          >
+            <Maximize size={18} /> Agrandir en plein écran
+          </button>
         </div>
       </div>
     </section>
