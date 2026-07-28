@@ -22,17 +22,23 @@ interface Receiver { network: Network; phone: string; label: string }
  */
 const CHANNELS: {
   id: string; country: string; operator: string; network: Network; intl: boolean;
-  ussd?: string; steps: string[];
+  // Gabarit USSD ; {r} = numéro de réception, {a} = montant. Le code secret (PIN) n'est
+  // JAMAIS pré-rempli : le client le tape lui-même, puis appuie sur # et appelle.
+  ussdTemplate?: string; steps: string[];
 }[] = [
   {
     id: 'tg-moov', country: 'Togo', operator: 'Moov Money', network: 'MOOV', intl: false,
-    ussd: '*855#',
-    steps: ['Ouvre le clavier avec le bouton ci-dessous (*855#)', 'Choisis « Transfert d’argent »', 'Numéro : celui affiché ci-dessus', 'Montant exact', 'Valide avec ton code PIN'],
+    ussdTemplate: '*155*1*1*{r}*{r}*{a}*',
+    steps: [
+      'Appuie sur « Ouvrir le clavier » ci-dessous : le numéro et le montant sont déjà pré-remplis.',
+      'Tape ton CODE SECRET Moov à la fin, puis #, et appelle.',
+      'Vérifie bien le montant avant de valider.',
+    ],
   },
   {
     id: 'tg-tmoney', country: 'Togo', operator: 'Mixx by Yas (T-Money)', network: 'TOGOCEL', intl: false,
-    ussd: '*145#',
-    steps: ['Ouvre le clavier avec le bouton ci-dessous (*145#)', 'Choisis « Transfert d’argent »', 'Numéro : celui affiché ci-dessus', 'Montant exact', 'Valide avec ton code PIN'],
+    ussdTemplate: '*145#',
+    steps: ['Ouvre le clavier avec le bouton ci-dessous (*145#)', 'Choisis « Transfert d’argent »', 'Numéro : celui affiché ci-dessus', 'Montant exact', 'Valide avec ton code secret'],
   },
   {
     id: 'intl-moov', country: 'Depuis l’étranger', operator: 'Moov Money', network: 'MOOV', intl: true,
@@ -70,6 +76,14 @@ export default function MobileMoneyCheckout({ purpose, amount }: { purpose: Purp
     [receivers, channel.network],
   );
   const receiver = netReceivers.length ? netReceivers[rotation % netReceivers.length] : null;
+
+  // Code USSD pré-rempli (numéro de réception + montant). Le PIN reste à taper par le client.
+  const ussdDial = useMemo(() => {
+    if (!channel.ussdTemplate || !receiver) return null;
+    return channel.ussdTemplate
+      .replace(/\{r\}/g, receiver.phone)
+      .replace(/\{a\}/g, amount != null ? String(Math.round(amount)) : '');
+  }, [channel.ussdTemplate, receiver, amount]);
 
   const submit = async () => {
     setError('');
@@ -169,15 +183,21 @@ export default function MobileMoneyCheckout({ purpose, amount }: { purpose: Purp
           <p className="mt-2 text-sm font-black text-gold">Montant exact : {amount.toLocaleString('fr-FR')} FCFA</p>
         )}
 
-        {/* Togo : on connaît le code → on ouvre le clavier du téléphone directement.
-            (# doit être encodé en %23 pour que le composeur l'accepte.) */}
-        {channel.ussd && (
-          <a
-            href={`tel:${channel.ussd.replace('#', '%23')}`}
-            className="mt-3 w-full glass rounded-xl py-3 font-black tap-target flex items-center justify-center gap-2 border border-gold/40 text-gold"
-          >
-            <Phone size={16} /> Ouvrir le clavier ({channel.ussd})
-          </a>
+        {/* Togo : on ouvre le clavier avec le code déjà pré-rempli (numéro + montant).
+            (# encodé en %23 pour le composeur ; le PIN reste tapé par le client.) */}
+        {ussdDial && (
+          <>
+            <a
+              href={`tel:${ussdDial.replace(/#/g, '%23')}`}
+              className="mt-3 w-full gold-gradient text-black rounded-xl py-3 font-black tap-target flex items-center justify-center gap-2"
+            >
+              <Phone size={16} /> Ouvrir le clavier (transfert pré-rempli)
+            </a>
+            <p className="mt-2 text-[11px] text-gray-400 break-all">
+              Code : <span className="font-mono text-gray-300">{ussdDial}</span>
+              <b className="text-gold"> code&nbsp;secret #</b>
+            </p>
+          </>
         )}
 
         {channel.intl && (
