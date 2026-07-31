@@ -3,14 +3,16 @@ import { useEffect, useState } from 'react';
 import {
   BarChart3, Megaphone, Images, Film, MessageSquareWarning, Inbox, Users, RefreshCw,
   CreditCard, ArrowDownToLine, ShieldCheck, LogOut, Menu, Brain, FileText, Upload, HandCoins,
+  TrendingUp,
 } from 'lucide-react';
 import { api, apiUpload } from '@/lib/api';
 import { AuthUser } from '@/lib/types';
 import { mediaUrl } from '@/lib/config';
 import { showToast } from '@/lib/clipboard';
+import { useRealtime } from '@/lib/useRealtime';
 
 type Tab =
-  | 'stats' | 'leads' | 'payments' | 'withdrawals' | 'predictions'
+  | 'stats' | 'sales' | 'leads' | 'payments' | 'withdrawals' | 'predictions'
   | 'marquee' | 'carousel' | 'video' | 'media' | 'texts' | 'reviews' | 'users' | 'investors';
 
 const fmt = (n: number) => `${Math.round(n).toLocaleString('fr-FR')} FCFA`;
@@ -37,6 +39,7 @@ const NAV: { group: string; items: { id: Tab; label: string; icon: any }[] }[] =
     { id: 'users', label: 'Membres', icon: Users },
   ]},
   { group: 'Analytics', items: [
+    { id: 'sales', label: 'Ventes & Paiements', icon: TrendingUp },
     { id: 'stats', label: 'Trafic', icon: BarChart3 },
   ]},
 ];
@@ -104,6 +107,7 @@ export default function AdminPanel({ user, onLogout }: { user: AuthUser; onLogou
         </div>
 
         {tab === 'stats' && <StatsTab />}
+        {tab === 'sales' && <SalesStatsTab />}
         {tab === 'leads' && <LeadsTab onChange={loadCounts} />}
         {tab === 'payments' && <PaymentsTab onChange={loadCounts} />}
         {tab === 'withdrawals' && <WithdrawalsTab onChange={loadCounts} />}
@@ -118,6 +122,71 @@ export default function AdminPanel({ user, onLogout }: { user: AuthUser; onLogou
         {tab === 'investors' && <InvestorsTab />}
       </section>
     </main>
+  );
+}
+
+/* ── Ventes & Paiements ─────────────────────────────────── */
+function SalesStatsTab() {
+  const [s, setS] = useState<any>(null);
+  const load = () => api('/payments/stats', { auth: true }).then(setS).catch(() => {});
+  useEffect(() => { load(); }, []);
+  useRealtime((type) => {
+    if (['payment.new', 'payment.validated', 'payment.rejected', 'transaction.completed'].includes(type)) load();
+  });
+
+  if (!s) return <p className="text-gray-500">Chargement des statistiques…</p>;
+
+  const Card = ({ label, value, sub, color = 'text-white' }: { label: string; value: string | number; sub?: string; color?: string }) => (
+    <div className="glass rounded-2xl p-5">
+      <div className="text-xs uppercase tracking-widest text-gray-400 mb-1">{label}</div>
+      <div className={`text-3xl font-black ${color}`}>{value}</div>
+      {sub && <div className="text-[11px] text-gray-500 mt-1">{sub}</div>}
+    </div>
+  );
+
+  return (
+    <div className="space-y-8">
+      {/* GOLD */}
+      <div>
+        <h3 className="font-black text-gold mb-3 flex items-center gap-2"><CreditCard size={18} /> Pack Gold</h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Card label="Abonnements payés" value={s.gold.purchases} color="text-live" sub="Total des ventes réussies" />
+          <Card label="Membres Gold actifs" value={s.gold.activeMembers} color="text-gold" sub="Abonnement non expiré" />
+          <Card label="En attente" value={s.gold.pending} sub="Paiements non encore validés" />
+          <Card label="Recette Gold" value={fmt(s.gold.revenue)} color="text-live" />
+        </div>
+      </div>
+
+      {/* INVESTISSEMENT */}
+      <div>
+        <h3 className="font-black text-electric mb-3 flex items-center gap-2"><HandCoins size={18} /> Investissement</h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Card label="Investisseurs" value={s.investment.investorCount} />
+          <Card label="Dépôts validés" value={s.investment.deposits.validated} color="text-live" sub={fmt(s.investment.validatedAmount)} />
+          <Card label="Dépôts en attente" value={s.investment.deposits.pending} color="text-gold" />
+          <Card label="Dépôts rejetés" value={s.investment.deposits.rejected} color="text-red-400" />
+        </div>
+        <div className="grid grid-cols-3 gap-4 mt-4">
+          <Card label="Sous analyse" value={fmt(s.investment.balances.underAnalysis)} color="text-gold" />
+          <Card label="Gelé (investi)" value={fmt(s.investment.balances.frozen)} color="text-electric" />
+          <Card label="Retirable" value={fmt(s.investment.balances.withdrawable)} color="text-live" />
+        </div>
+      </div>
+
+      {/* MOBILE MONEY */}
+      <div>
+        <h3 className="font-black text-white mb-3 flex items-center gap-2"><TrendingUp size={18} /> Paiements Mobile Money</h3>
+        <div className="grid grid-cols-3 gap-4">
+          <Card label="Réussis" value={s.mobileMoney.completed} color="text-live" />
+          <Card label="En attente" value={s.mobileMoney.pending} color="text-gold" />
+          <Card label="Échoués" value={s.mobileMoney.failed} color="text-red-400" />
+        </div>
+      </div>
+
+      <button onClick={load} className="glass rounded-xl px-5 py-2 text-sm font-bold flex items-center gap-2 hover:bg-white/10">
+        <RefreshCw size={14} /> Actualiser
+      </button>
+    </div>
   );
 }
 

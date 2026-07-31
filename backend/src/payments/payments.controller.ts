@@ -150,6 +150,15 @@ async function go(ok){
     return this.payments.listPending();
   }
 
+  /** Admin/super-admin : statistiques de paiement (ventes Gold, dépôts investisseur…). */
+  @Get('stats')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  stats() {
+    return this.payments.paymentStats();
+  }
+
   @Post(':id/validate')
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)

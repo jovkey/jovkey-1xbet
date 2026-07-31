@@ -218,6 +218,54 @@ export class PaymentsService {
   }
 
   /**
+   * Statistiques de paiement pour le panel admin/super-admin : combien de ventes Gold,
+   * combien d'investisseurs, combien de dépôts validés/en attente/rejetés, recette, etc.
+   */
+  async paymentStats() {
+    const now = new Date();
+    const [
+      goldValidated, goldPending, activeGold, goldRevenue,
+      invPending, invValidated, invRejected, invValidatedSum,
+      investorCount, invBalances,
+      txCompleted, txPending, txFailed,
+    ] = await Promise.all([
+      this.prisma.payment.count({ where: { purpose: 'gold_subscription', status: 'validated' } }),
+      this.prisma.payment.count({ where: { purpose: 'gold_subscription', status: 'pending' } }),
+      this.prisma.user.count({ where: { role: 'gold', subscriptionEndsAt: { gt: now } } }),
+      this.prisma.payment.aggregate({ where: { purpose: 'gold_subscription', status: 'validated' }, _sum: { amount: true } }),
+      this.prisma.payment.count({ where: { purpose: 'investor_deposit', status: 'pending' } }),
+      this.prisma.payment.count({ where: { purpose: 'investor_deposit', status: 'validated' } }),
+      this.prisma.payment.count({ where: { purpose: 'investor_deposit', status: 'rejected' } }),
+      this.prisma.payment.aggregate({ where: { purpose: 'investor_deposit', status: 'validated' }, _sum: { amount: true } }),
+      this.prisma.user.count({ where: { role: 'investor' } }),
+      this.prisma.user.aggregate({ where: { role: 'investor' }, _sum: { balanceUnderAnalysis: true, balanceFrozen: true, balanceWithdrawable: true } }),
+      this.prisma.transaction.count({ where: { status: 'completed' } }),
+      this.prisma.transaction.count({ where: { status: 'pending' } }),
+      this.prisma.transaction.count({ where: { status: 'failed' } }),
+    ]);
+
+    return {
+      gold: {
+        purchases: goldValidated,   // nombre d'abonnements payés
+        pending: goldPending,       // paiements Gold en attente
+        activeMembers: activeGold,  // membres Gold actifs (abonnement non expiré)
+        revenue: Number(goldRevenue._sum.amount || 0),
+      },
+      investment: {
+        investorCount,
+        deposits: { pending: invPending, validated: invValidated, rejected: invRejected },
+        validatedAmount: Number(invValidatedSum._sum.amount || 0),
+        balances: {
+          underAnalysis: Number(invBalances._sum.balanceUnderAnalysis || 0),
+          frozen: Number(invBalances._sum.balanceFrozen || 0),
+          withdrawable: Number(invBalances._sum.balanceWithdrawable || 0),
+        },
+      },
+      mobileMoney: { completed: txCompleted, pending: txPending, failed: txFailed },
+    };
+  }
+
+  /**
    * Admin : file des paiements en attente à arbitrer manuellement.
    * Uniquement les recharges investisseur (l'admin choisit qui est investi ce mois-ci,
    * cf. §3 : sélection/rejet du capital). L'abonnement Gold, lui, est validé
