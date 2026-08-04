@@ -417,11 +417,15 @@ function InvestorsTab() {
   const [enabled, setEnabled] = useState(false);
   const [whatsapp, setWhatsapp] = useState('');
   const [leads, setLeads] = useState<any[]>([]);
+  // Dépôt Mobile Money (Moov / T-Money) : absent du CMS = activé par défaut.
+  const [mmEnabled, setMmEnabled] = useState(true);
 
   const load = () => {
     api('/cms/public').then((c: any) => {
       setEnabled(!!c.settings?.investor_contact_enabled?.enabled);
       setWhatsapp(c.settings?.investor_contact_whatsapp?.number || '');
+      const mm = c.settings?.investor_mobile_money_enabled;
+      setMmEnabled(mm ? !!mm.enabled : true);
     }).catch(() => {});
     api('/investments/leads', { auth: true }).then(setLeads).catch(() => {});
   };
@@ -431,6 +435,11 @@ function InvestorsTab() {
     setEnabled(val);
     await api('/cms/settings/investor_contact_enabled', { method: 'PUT', auth: true, body: { value: { enabled: val } } });
     showToast(val ? 'Bouton « Contacter » activé' : 'Bouton « Contacter » désactivé');
+  };
+  const saveMmEnabled = async (val: boolean) => {
+    setMmEnabled(val);
+    await api('/cms/settings/investor_mobile_money_enabled', { method: 'PUT', auth: true, body: { value: { enabled: val } } });
+    showToast(val ? 'Dépôt Mobile Money activé' : 'Dépôt Mobile Money masqué');
   };
   const saveWhatsapp = async () => {
     await api('/cms/settings/investor_contact_whatsapp', { method: 'PUT', auth: true, body: { value: { number: whatsapp.trim() } } });
@@ -447,6 +456,23 @@ function InvestorsTab() {
 
   return (
     <div className="space-y-5">
+      {/* Interrupteur du dépôt Mobile Money (Moov / T-Money) */}
+      <div className="glass rounded-2xl p-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="font-black">Dépôt Mobile Money (Moov / T-Money)</div>
+            <p className="text-xs text-gray-400">
+              Affiche le bouton « Recharger / Investir » aux investisseurs (envoi vers les puces relais,
+              validé automatiquement par le téléphone Listener). Désactive-le pour masquer complètement le dépôt.
+            </p>
+          </div>
+          <button onClick={() => saveMmEnabled(!mmEnabled)}
+            className={`w-14 h-8 rounded-full transition relative shrink-0 ${mmEnabled ? 'bg-live' : 'bg-white/15'}`}>
+            <span className={`absolute top-1 w-6 h-6 rounded-full bg-white transition-all ${mmEnabled ? 'left-7' : 'left-1'}`} />
+          </button>
+        </div>
+      </div>
+
       {/* Réglages du canal « Contacter l'administration » */}
       <div className="glass rounded-2xl p-5 space-y-4">
         <div className="flex items-center justify-between">
