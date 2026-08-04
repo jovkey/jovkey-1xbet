@@ -1,10 +1,11 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, Wallet, ArrowDownToLine } from 'lucide-react';
 import { copyText } from '@/lib/clipboard';
 import { track } from '@/lib/api';
 import { PROMO_CODE } from '@/lib/config';
+import { openRecharge } from '@/lib/recharge';
 
 // Chemins absolus (/#vip) plutôt que relatifs (#vip) : la navbar est réutilisée sur
 // /login et /signup, où un simple #vip ne ferait rien (pas de section à cet id sur ces
@@ -37,6 +38,12 @@ export default function Navbar() {
           {LINKS.map((l) => (
             <a key={l.href} href={l.href} className="hover:text-gold transition">{l.label}</a>
           ))}
+          <button onClick={() => openRecharge('deposit')} className="hover:text-gold transition inline-flex items-center gap-1 uppercase">
+            <Wallet size={14} /> Recharger
+          </button>
+          <button onClick={() => openRecharge('withdraw')} className="hover:text-gold transition inline-flex items-center gap-1 uppercase">
+            <ArrowDownToLine size={14} /> Retrait
+          </button>
           <Link href="/signup" className="hover:text-gold transition">S&apos;inscrire</Link>
           <Link href="/login" className="hover:text-gold transition">Connexion</Link>
         </div>
@@ -66,6 +73,18 @@ export default function Navbar() {
               {l.label}
             </a>
           ))}
+          <button
+            onClick={() => { setOpen(false); openRecharge('deposit'); }}
+            className="text-left px-3 py-3 rounded-xl hover:bg-white/10 hover:text-gold transition inline-flex items-center gap-2 text-gold"
+          >
+            <Wallet size={16} /> Recharger mon compte
+          </button>
+          <button
+            onClick={() => { setOpen(false); openRecharge('withdraw'); }}
+            className="text-left px-3 py-3 rounded-xl hover:bg-white/10 hover:text-gold transition inline-flex items-center gap-2 text-gold"
+          >
+            <ArrowDownToLine size={16} /> Faire un retrait
+          </button>
           <Link href="/signup" onClick={() => setOpen(false)} className="px-3 py-3 rounded-xl hover:bg-white/10 hover:text-gold transition">
             S&apos;inscrire
           </Link>

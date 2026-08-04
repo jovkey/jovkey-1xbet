@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
-import { Copy, Flame, Trophy, Crown, Sparkles, ShieldCheck, Lock, Zap, Megaphone, History, ChevronDown, CheckCircle2, XCircle } from 'lucide-react';
+import { Copy, Flame, Trophy, Crown, Sparkles, ShieldCheck, Lock, Zap, Megaphone, History, ChevronDown, CheckCircle2, XCircle, Clock } from 'lucide-react';
 import { api } from '@/lib/api';
 import { copyText } from '@/lib/clipboard';
 import { mediaUrl } from '@/lib/config';
@@ -50,11 +50,25 @@ export default function GoldDashboard() {
     }
   };
 
-  // Séparation : un pronostic noté (won/lost/void) est un match passé ; le reste est « du jour ».
+  // Séparation par JOUR (et non plus « noté / pas noté ») :
+  //  • « Matchs du jour » = uniquement les coupons poussés AUJOURD'HUI et pas encore joués.
+  //  • « Matchs passés »  = tout le reste (déjà noté, OU poussé un jour précédent). Un coupon
+  //    d'hier bascule donc tout seul dans « passés » le lendemain, même si le moteur ne l'a
+  //    pas encore noté (il y apparaît « en attente de résultat »). Si rien n'est poussé
+  //    aujourd'hui, la section « du jour » reste vide ; dès qu'on pousse, elle se remplit.
   const { current, past, pastWon, pastGraded } = useMemo(() => {
+    // Jour local au format AAAA-MM-JJ (Togo = UTC+0 → identique à eventDate du moteur).
+    const todayStr = new Date().toLocaleDateString('en-CA');
+    const dayOf = (p: Prediction) =>
+      p.eventDate || (p.createdAt ? new Date(p.createdAt).toLocaleDateString('en-CA') : todayStr);
+
     const cur: Prediction[] = [];
     const old: Prediction[] = [];
-    for (const p of feed) (p.result && p.result !== 'pending' ? old : cur).push(p);
+    for (const p of feed) {
+      const isGraded = !!p.result && p.result !== 'pending';
+      // Passé si déjà noté OU daté d'un jour antérieur à aujourd'hui.
+      (isGraded || dayOf(p) < todayStr ? old : cur).push(p);
+    }
     const graded = old.filter((p) => p.result === 'won' || p.result === 'lost');
     return {
       current: cur,
@@ -188,7 +202,13 @@ export default function GoldDashboard() {
             <div
               key={p.id}
               className={`glass rounded-2xl p-5 border-l-4 relative overflow-hidden opacity-90 ${
-                p.result === 'won' ? 'border-live' : p.result === 'lost' ? 'border-red-500' : 'border-gray-500'
+                p.result === 'won'
+                  ? 'border-live'
+                  : p.result === 'lost'
+                    ? 'border-red-500'
+                    : p.result === 'void'
+                      ? 'border-gray-500'
+                      : 'border-electric/60'
               }`}
             >
               <div className="flex justify-between items-start mb-2">
@@ -200,8 +220,10 @@ export default function GoldDashboard() {
                   <span className="text-xs font-black text-live flex items-center gap-1"><CheckCircle2 size={14} /> Gagné</span>
                 ) : p.result === 'lost' ? (
                   <span className="text-xs font-black text-red-400 flex items-center gap-1"><XCircle size={14} /> Perdu</span>
-                ) : (
+                ) : p.result === 'void' ? (
                   <span className="text-xs font-black text-gray-400">Annulé</span>
+                ) : (
+                  <span className="text-xs font-black text-electric flex items-center gap-1"><Clock size={14} /> En attente</span>
                 )}
               </div>
               <div className="font-bold text-lg">{p.match}</div>

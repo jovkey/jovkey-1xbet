@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
+import RechargeButton from '@/components/RechargeButton';
 import MarqueeBar from '@/components/MarqueeBar';
 import VitrineDynamic from '@/components/VitrineDynamic';
 import VipPacks from '@/components/VipPacks';
@@ -39,6 +40,8 @@ export default function HomePage() {
             <a href="#coupons" className="glass px-10 rounded-xl font-black text-lg hover:bg-white/10 transition tap-target flex items-center justify-center">
               COUPON GRATUIT
             </a>
+            <RechargeButton mode="deposit" />
+            <RechargeButton mode="withdraw" />
           </div>
           <div className="mt-6 text-sm text-gray-500">
             Déjà membre ?{' '}

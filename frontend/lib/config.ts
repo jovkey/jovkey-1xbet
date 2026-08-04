@@ -19,6 +19,18 @@ export const mediaUrl = (url: string) => (url?.startsWith('/') ? `${API_URL}${ur
 export const GOLD_PRICE_XOF = 5600;
 export const CURRENCY = 'FCFA';
 
+/** Nom public du site (utilisé dans le message WhatsApp de recharge). */
+export const SITE_NAME = 'JOVKEY-1XBET';
+
+/**
+ * Numéro WhatsApp de l'agent 1xBet qui reçoit les demandes de recharge/dépôt.
+ * Format international SANS le « + » ni espaces (requis par les liens wa.me).
+ * Surchargeable via NEXT_PUBLIC_DEPOSIT_WHATSAPP → tu pourras y mettre ton propre
+ * numéro d'agent plus tard sans toucher au code (défaut = numéro de l'agent partenaire).
+ */
+export const DEPOSIT_WHATSAPP = (process.env.NEXT_PUBLIC_DEPOSIT_WHATSAPP || '22891451205')
+  .replace(/[^\d]/g, '');
+
 export type PayMethodId = 'mtn' | 'moov' | 'orange' | 'wave' | 'card' | 'paypal' | 'other';
 
 /** Moyens de paiement locaux (mobile money Afrique) + internationaux. */

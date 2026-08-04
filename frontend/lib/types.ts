@@ -25,6 +25,9 @@ export interface Prediction {
   resultNote?: string | null;
   eventDate?: string | null;
   playedAt?: string | null;
+  // Date de publication (poussée). Sert à faire basculer un coupon dans « matchs passés »
+  // dès le lendemain, même s'il n'a pas encore été noté par le moteur.
+  createdAt?: string | null;
 }
 
 export interface Review {
