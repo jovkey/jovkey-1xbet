@@ -1,127 +1,146 @@
-# 📡 Paiement Mobile Money « Listener » — Moov & T-Money (Togocel)
+# 📡 Paiement Mobile Money « Masterclass Listener » — Moov & T-Money (Togocel)
 
-Ce moyen de paiement encaisse les **dépôts d'investissement** (et les abonnements Gold)
-en Mobile Money **sans passerelle payante**. Le principe : le client envoie l'argent vers
-une **puce relais** (SIM Moov / T-Money dans un téléphone Android que tu gardes), une app
-Android **« Masterclass Listener »** lit le SMS de réception et le transmet au backend, qui
-**valide automatiquement** le paiement après 4 barrières anti-fraude.
+Encaisse les paiements en Mobile Money **sans passerelle payante** : le client envoie
+l'argent vers une **puce relais** (SIM Moov / T-Money dans un téléphone Android que tu
+gardes), l'app **« Masterclass Listener »** lit le SMS de réception et le transmet au
+backend, qui **valide automatiquement** après 4 barrières anti-fraude.
 
 C'est l'équivalent « fait maison » de FedaPay : au lieu d'une clé API + webhook FedaPay,
-on a **un jeton partagé + un webhook** appelé par le téléphone Listener.
+on a **un jeton partagé + un webhook**.
+
+Utilisé pour : **dépôt d'investissement** (déjà en place) **et le Pack Gold** (nouveau,
+activable/désactivable depuis le panel admin).
 
 ---
 
-## 1. Côté serveur (backend) — le jeton
+## 0. Tes vraies valeurs (à recopier telles quelles)
 
-Une **seule variable d'environnement** à définir sur le backend déployé :
+| Élément | Valeur RÉELLE |
+|---|---|
+| **Nom de l'app Android** | Masterclass Listener (relais SMS générique à règles) |
+| **Domaine du backend** | `https://jovkey-1xbet.onrender.com` |
+| **Chemin du webhook** | `/api/checkout/webhook/sms-raw` |
+| **Webhook Moov** | `https://jovkey-1xbet.onrender.com/api/checkout/webhook/sms-raw?receiver=96530302` |
+| **Webhook T-Money** | `https://jovkey-1xbet.onrender.com/api/checkout/webhook/sms-raw?receiver=71480354` |
+| **Jeton (Bearer)** | `jovkey_sms_6836ac78c56f27082bb4999a8301f1443dd17f29d72faef3` |
 
+> ⚠️ Le paramètre `?receiver=…` dans l'URL dit **sur quelle SIM** le SMS est arrivé.
+> C'est pour ça qu'il y a **deux URL** (donc **deux règles** dans l'app), même si les deux
+> SIM sont dans le **même téléphone** : chaque règle = une puce.
+
+---
+
+## 1. Côté serveur (Render) — le jeton
+
+Le jeton est déjà écrit dans `backend/.env` :
 ```
-SMS_DEVICE_TOKEN=<une longue chaîne aléatoire secrète>
+SMS_DEVICE_TOKEN=jovkey_sms_6836ac78c56f27082bb4999a8301f1443dd17f29d72faef3
 ```
+**Sur Render** (Dashboard → service `jovkey-1xbet` → Environment), ajoute la MÊME variable :
+```
+SMS_DEVICE_TOKEN = jovkey_sms_6836ac78c56f27082bb4999a8301f1443dd17f29d72faef3
+```
+puis **redéploie**. Sans elle, le webhook répond `401` et rien n'est validé.
 
-- Génère une valeur forte (ex. 40+ caractères aléatoires).
-- C'est le « mot de passe » que le téléphone Listener présente à chaque SMS.
-- Sans elle, le webhook répond `401` et **aucun** paiement n'est validé.
-
-> Rien d'autre à coder : le endpoint et les puces réceptrices existent déjà.
-
-### Puces réceptrices déjà configurées
-
-Dans `backend/src/checkout/receivers.ts` :
+### Puces réceptrices (déjà configurées) — `backend/src/checkout/receivers.ts`
 
 | Réseau | Numéro (puce relais) | Actif |
 |---|---|---|
 | **Moov** | `96530302` | ✅ |
-| Moov (2ᵉ, réserve) | `86436058` | ❌ (mettre `active: true` le jour où la SIM + une règle Listener existent) |
+| Moov (2ᵉ, réserve) | `86436058` | ❌ |
 | **T-Money (TOGOCEL)** | `71480354` | ✅ |
 
-Pour ajouter/retirer une puce, édite ce fichier (`active: true/false`) — les clients cessent
-aussitôt d'utiliser une puce désactivée, sans redéploiement de logique.
+Les deux numéros actifs sont ceux affichés au client sur le site.
 
 ---
 
-## 2. Côté téléphone — l'app « Masterclass Listener »
+## 2. Côté téléphone — configurer l'app « Masterclass Listener »
 
-Installe l'APK sur le téléphone qui contient les SIM Moov + T-Money, accepte la permission
-**SMS**, puis crée **une règle par réseau** (bouton **+ Règle**).
-
-L'app poste, pour chaque SMS retenu :
+Installe l'APK sur le téléphone qui contient les 2 SIM, accepte la permission **SMS**,
+puis crée **une règle par réseau** (bouton **+ Règle**). L'app poste, pour chaque SMS
+retenu :
 ```
 POST <URL de la règle>
 Authorization: Bearer <jeton de la règle>
 Content-Type: application/json
 { "text": "<SMS intégral>", "from": "MoovMoney" }
 ```
-Le backend lit `?receiver=` (quelle puce), décode le texte et valide. Le paramètre
-`?receiver=` DOIT être présent dans l'URL pour dire **sur quelle SIM** le SMS est arrivé.
 
 ### Règle 1 — Moov
 
-| Champ | Valeur |
+| Champ (dans l'app) | Valeur à saisir |
 |---|---|
 | **Nom du projet** | `JOVKEY Moov` |
-| **URL du webhook** | `https://api.TON-DOMAINE.com/api/checkout/webhook/sms-raw?receiver=96530302` |
-| **Jeton (Bearer)** | la valeur **exacte** de `SMS_DEVICE_TOKEN` |
-| **Expéditeur contient** | `Moov` (capte « MoovMoney » / « Flooz ») |
-| **ID de carte SIM** | vide (ou l'`SIM id` lu dans le journal si les 2 SIM sont du même type) |
+| **URL du webhook** | `https://jovkey-1xbet.onrender.com/api/checkout/webhook/sms-raw?receiver=96530302` |
+| **Jeton (Bearer)** | `jovkey_sms_6836ac78c56f27082bb4999a8301f1443dd17f29d72faef3` |
+| **Expéditeur contient** | `Moov` |
+| **ID de carte SIM** | vide (sauf si les 2 SIM sont du même type — voir plus bas) |
 
 ### Règle 2 — T-Money (Togocel / Mixx by Yas)
 
-| Champ | Valeur |
+| Champ (dans l'app) | Valeur à saisir |
 |---|---|
 | **Nom du projet** | `JOVKEY T-Money` |
-| **URL du webhook** | `https://api.TON-DOMAINE.com/api/checkout/webhook/sms-raw?receiver=71480354` |
-| **Jeton (Bearer)** | la **même** valeur de `SMS_DEVICE_TOKEN` |
-| **Expéditeur contient** | `Mixx` (ou `Yas` / `T-Money`) |
+| **URL du webhook** | `https://jovkey-1xbet.onrender.com/api/checkout/webhook/sms-raw?receiver=71480354` |
+| **Jeton (Bearer)** | `jovkey_sms_6836ac78c56f27082bb4999a8301f1443dd17f29d72faef3` (le **même**) |
+| **Expéditeur contient** | `Mixx` |
 | **ID de carte SIM** | vide, ou l'`SIM id` de la SIM T-Money |
 
-> **HTTPS obligatoire.** L'app refuse d'envoyer vers une URL `http://` publique (elle
-> n'accepte le `http://` que pour `localhost` / `192.168.x` / `10.x` en test local).
+> **Filtre SIM (optionnel).** Comme Moov et T-Money ont des expéditeurs différents
+> (« MoovMoney » vs « MixxByYas »), le champ **Expéditeur contient** suffit à ne pas
+> mélanger les deux — laisse « ID de carte SIM » vide. Ne renseigne l'ID SIM que si un jour
+> tu mets deux SIM du même opérateur : reçois un SMS, lis « SIM id … » dans le Journal de
+> l'app, et recopie ce nombre.
 
-Après avoir saisi une règle, appuie sur **Tester** : tu dois voir « Serveur joignable ».
-Puis, sur l'écran principal, **DÉMARRER L'ÉCOUTE**. Laisse le téléphone branché et
-**désactive l'optimisation de batterie** pour l'app (Réglages → Batterie → Sans restriction).
+Après chaque règle : **Tester** (doit afficher « Serveur joignable ») → écran principal →
+**DÉMARRER L'ÉCOUTE**. Laisse le téléphone branché et **désactive l'optimisation de
+batterie** pour l'app (Réglages → Batterie → Sans restriction). L'écoute redémarre seule
+après un reboot.
+
+> **HTTPS obligatoire** : l'app refuse d'envoyer vers une URL `http://` publique (elle
+> n'accepte `http://` que pour `localhost` / `192.168.x` / `10.x` en test local). Ton URL
+> Render est en `https://`, donc c'est bon — et **rien n'est jamais redirigé ailleurs** :
+> l'app poste directement, uniquement, vers l'URL exacte de la règle.
 
 ---
 
-## 3. Les 4 barrières anti-fraude (rappel — côté serveur, rien à configurer)
+## 3. Les 4 barrières anti-fraude (côté serveur — rien à configurer)
 
-Dans `backend/src/checkout/checkout.service.ts` (`ingestRawSms`) :
+`backend/src/checkout/checkout.service.ts` → `ingestRawSms` :
 
-1. **Expéditeur officiel** — un SMS venant d'un numéro ordinaire est rejeté (seuls
-   « MoovMoney / Flooz / Mixx / T-Money / Yas » sont acceptés).
+1. **Expéditeur officiel** — un SMS d'un numéro ordinaire est rejeté (seuls
+   MoovMoney / Flooz / Mixx / T-Money / Yas passent).
 2. **Référence unique** — anti-rejeu du même reçu.
 3. **Continuité du solde** — `ancien_solde + montant = nouveau_solde` au centime près
-   (un faussaire ne connaît pas le solde exact de la puce). Incohérence → archivé pour
-   vérification manuelle, **jamais** validé automatiquement.
-4. **Concordance stricte** — numéro expéditeur + montant + puce réceptrice doivent
-   correspondre à une transaction en attente déclarée par le client.
+   (un faussaire ne connaît pas le solde exact). Incohérence → archivé pour vérification
+   manuelle, jamais validé automatiquement.
+4. **Concordance stricte** — numéro expéditeur + montant + puce doivent correspondre à
+   une transaction en attente déclarée par le client. → validation **immédiate**.
 
 ---
 
-## 4. Activer / masquer le dépôt côté site (panel admin)
+## 4. Activer / masquer côté site (panel admin)
 
-Dans **Tour de contrôle → Investisseurs**, l'interrupteur **« Dépôt Mobile Money
-(Moov / T-Money) »** affiche ou masque le bouton « Recharger / Investir » des
-investisseurs, en direct (SSE). Utile pour couper les dépôts quand le téléphone Listener
-est hors service, sans rien redéployer.
-
-Techniquement : réglage CMS `investor_mobile_money_enabled` (`{ enabled: true|false }`).
-Absent = activé par défaut.
+- **Pack Gold** — *Tour de contrôle → Textes & Tarifs → « Paiement Mobile Money — Pack
+  Gold »* : interrupteur qui affiche/masque l'option Mobile Money sur l'inscription Gold et
+  l'écran « finalise ton paiement ». (Réglage CMS `gold_mobile_money_enabled`, absent =
+  activé.)
+- **Investissement** — le dépôt Mobile Money (Moov, T-Money **et international**) reste
+  disponible comme avant, dans l'espace investisseur (bouton « Recharger / Investir »).
 
 ---
 
 ## 5. Test rapide (sans vrai paiement)
 
-Depuis un terminal, simule un SMS reçu sur la puce Moov :
+Simule un SMS reçu sur la puce Moov :
 
 ```bash
-curl -X POST "https://api.TON-DOMAINE.com/api/checkout/webhook/sms-raw?receiver=96530302" \
-  -H "Authorization: Bearer $SMS_DEVICE_TOKEN" \
+curl -X POST "https://jovkey-1xbet.onrender.com/api/checkout/webhook/sms-raw?receiver=96530302" \
+  -H "Authorization: Bearer jovkey_sms_6836ac78c56f27082bb4999a8301f1443dd17f29d72faef3" \
   -H "Content-Type: application/json" \
   -d '{ "from": "MoovMoney", "text": "Transfert recu. Montant: 5 000 FCFA Expediteur: 22899043790 Nouveau solde Moov Money: 12 345,00 FCFA. Txn ID: 040726008443" }'
 ```
 
 - `matched:true` → une transaction en attente concordante a été validée.
-- `reason:"stored_for_later"` → SMS mis en réserve (aucune transaction déclarée encore).
-- `401` → jeton incorrect (`SMS_DEVICE_TOKEN` ≠ jeton de la règle).
+- `stored_for_later` → SMS mis en réserve (aucune transaction déclarée encore).
+- `401` → jeton incorrect (la variable Render ≠ le jeton de la règle).

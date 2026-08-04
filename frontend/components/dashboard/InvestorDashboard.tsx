@@ -110,9 +110,6 @@ export default function InvestorDashboard() {
   // « Contacter l'administration » : activable/désactivable depuis le panel admin (CMS).
   const [contactEnabled, setContactEnabled] = useState(false);
   const [contactWhatsapp, setContactWhatsapp] = useState('');
-  // Dépôt Mobile Money (Moov / T-Money) : activable/désactivable depuis le panel admin.
-  // Absent du CMS = activé par défaut (ne casse pas les déploiements existants).
-  const [mobileMoneyEnabled, setMobileMoneyEnabled] = useState(true);
 
   const load = () =>
     api<InvestorDashboardData>('/investments/dashboard', { auth: true }).then(setData).catch(() => {});
@@ -124,8 +121,6 @@ export default function InvestorDashboard() {
         setSlides((c.slides || []).filter((s) => s.linkTunnel === 'investor'));
         setContactEnabled(!!c.settings?.investor_contact_enabled?.enabled);
         setContactWhatsapp(c.settings?.investor_contact_whatsapp?.number || '');
-        const mm = c.settings?.investor_mobile_money_enabled;
-        setMobileMoneyEnabled(mm ? !!mm.enabled : true);
       })
       .catch(() => {});
   }, []);
@@ -232,14 +227,11 @@ export default function InvestorDashboard() {
       </div>
 
       {/* Actions */}
-      <div className={`grid ${mobileMoneyEnabled ? 'grid-cols-2' : 'grid-cols-1'} gap-4`}>
-        {/* Dépôt Mobile Money (Moov / T-Money) — masqué si l'admin l'a désactivé. */}
-        {mobileMoneyEnabled && (
-          <button onClick={() => openModal('recharge')}
-            className="gold-gradient text-black rounded-2xl font-black tap-target flex items-center justify-center gap-2 hover:scale-[1.01] transition py-4">
-            <Plus size={18} /> Recharger / Investir
-          </button>
-        )}
+      <div className="grid grid-cols-2 gap-4">
+        <button onClick={() => openModal('recharge')}
+          className="gold-gradient text-black rounded-2xl font-black tap-target flex items-center justify-center gap-2 hover:scale-[1.01] transition py-4">
+          <Plus size={18} /> Recharger / Investir
+        </button>
         <button onClick={() => openModal('withdraw')} disabled={!gate.unlocked || b.withdrawable <= 0}
           className={`rounded-2xl font-black tap-target flex items-center justify-center gap-2 py-4 transition ${
             gate.unlocked && b.withdrawable > 0
@@ -333,7 +325,7 @@ export default function InvestorDashboard() {
                     Envoie <b className="text-gold">{fmt(depositAmount)}</b> via Mobile Money, puis déclare
                     ton envoi. Ton capital sera placé « sous analyse » dès réception, avant validation.
                   </p>
-                  <MobileMoneyCheckout purpose="investor_deposit" amount={depositAmount} localOnly />
+                  <MobileMoneyCheckout purpose="investor_deposit" amount={depositAmount} />
                   <button onClick={() => setDepositAmount(0)} className="w-full text-gray-400 text-sm mt-4">← Changer le montant</button>
                 </>
               ) : (

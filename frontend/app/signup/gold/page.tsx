@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Crown, ArrowLeft, CreditCard, Zap } from 'lucide-react';
+import { Crown, ArrowLeft, CreditCard, Zap, Smartphone } from 'lucide-react';
 import { api } from '@/lib/api';
 import { GOLD_PRICE_XOF, CURRENCY } from '@/lib/config';
 import Navbar from '@/components/Navbar';
@@ -17,6 +17,8 @@ export default function GoldSignupPage() {
   const [chariowLink, setChariowLink] = useState('');
   // FedaPay masqué par défaut ; réactivable par le super-admin depuis le panel.
   const [fedapayEnabled, setFedapayEnabled] = useState(false);
+  // Mobile Money Gold (Moov / T-Money via Listener) — absent = activé par défaut.
+  const [mmEnabled, setMmEnabled] = useState(true);
 
   useEffect(() => {
     api('/cms/public').then((c: any) => {
@@ -24,8 +26,33 @@ export default function GoldSignupPage() {
       if (amount > 0) setPrice(amount);
       setChariowLink(c.settings?.chariow_gold_link?.url || '');
       setFedapayEnabled(!!c.settings?.fedapay_enabled?.enabled);
+      setMmEnabled(c.settings?.gold_mobile_money_enabled ? !!c.settings.gold_mobile_money_enabled.enabled : true);
     }).catch(() => {});
   }, []);
+
+  /**
+   * Paiement par Mobile Money (Moov / T-Money) : on crée le compte, on ouvre la session
+   * (auto-login), puis on l'envoie sur son tableau de bord où l'écran « finalise ton
+   * paiement » présente le checkout Mobile Money (validé automatiquement par le Listener).
+   */
+  const payMobileMoney = async () => {
+    setError('');
+    if (!validate()) return;
+    setLoading(true);
+    try {
+      try {
+        await api('/auth/signup/gold', { method: 'POST', body: { email, password, country } });
+      } catch (err: any) {
+        if (!/existe|already/i.test(err?.message || '')) throw err;
+      }
+      // Auto-login : le compte pending_payment peut se connecter (cf. auth.service).
+      await api('/auth/login', { method: 'POST', body: { email, password } });
+      window.location.href = '/dashboard';
+    } catch (err: any) {
+      setError(err.message || 'Inscription impossible.');
+      setLoading(false);
+    }
+  };
 
   // FedaPay ne s'affiche que s'il est explicitement activé, OU s'il n'y a pas encore de
   // lien Chariow (filet de sécurité : il faut toujours au moins un moyen de paiement).
@@ -150,6 +177,14 @@ export default function GoldSignupPage() {
             <CreditCard size={18} /> {loading ? 'Redirection vers le paiement…' : `Payer ${price.toLocaleString('fr-FR')} ${CURRENCY}`}
           </button>
         )}
+        {/* Paiement Mobile Money Moov / T-Money — validé automatiquement (activable par l'admin). */}
+        {mmEnabled && (
+          <button type="button" disabled={loading} onClick={payMobileMoney}
+            className="w-full mt-3 glass border border-gold/30 text-gold rounded-xl font-black tap-target disabled:opacity-60 hover:bg-white/5 transition flex items-center justify-center gap-2">
+            <Smartphone size={18} /> Payer par Mobile Money (Moov / T-Money)
+          </button>
+        )}
+
         <p className="text-[11px] text-gray-500 mt-4 text-center">
           Déjà membre ? <Link href="/login" className="text-gold underline">Connexion</Link>
         </p>

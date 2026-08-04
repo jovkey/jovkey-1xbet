@@ -51,20 +51,9 @@ const CHANNELS: {
   },
 ];
 
-export default function MobileMoneyCheckout({
-  purpose,
-  amount,
-  localOnly = false,
-}: {
-  purpose: Purpose;
-  amount?: number;
-  /** true = Togo uniquement (Moov + T-Money), sans le canal international. */
-  localOnly?: boolean;
-}) {
+export default function MobileMoneyCheckout({ purpose, amount }: { purpose: Purpose; amount?: number }) {
   const [receivers, setReceivers] = useState<Receiver[]>([]);
-  // Canaux proposés : en `localOnly`, on ne garde que Moov Togo + Mixx/T-Money Togo.
-  const channels = useMemo(() => (localOnly ? CHANNELS.filter((c) => !c.intl) : CHANNELS), [localOnly]);
-  const [channelId, setChannelId] = useState(channels[0].id);
+  const [channelId, setChannelId] = useState(CHANNELS[0].id);
   const [rotation, setRotation] = useState(0); // pour étaler sur les puces d'un même réseau
   const [senderPhone, setSenderPhone] = useState('');
   const [senderName, setSenderName] = useState('');
@@ -158,7 +147,7 @@ export default function MobileMoneyCheckout({
 
       {/* Pays / opérateur */}
       <div className="grid grid-cols-2 gap-2">
-        {channels.map((c) => (
+        {CHANNELS.map((c) => (
           <button
             key={c.id}
             onClick={() => { setChannelId(c.id); setRotation((r) => r + 1); }}
