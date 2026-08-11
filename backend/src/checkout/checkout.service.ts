@@ -134,10 +134,6 @@ export class CheckoutService {
    *  (5) concordance stricte   → déléguée à reconcile()
    */
   async ingestRawSms(params: { text: string; from?: string; receiverPhone: string }) {
-    const receiverPhone = normalizePhone(params.receiverPhone);
-    const account = activeReceivers().find((r) => r.phone === receiverPhone);
-    if (!account) return { ok: true, accepted: false, reason: 'unknown_receiver' };
-
     // (2) L'expéditeur doit être l'identifiant officiel de l'opérateur.
     if (!isTrustedSmsSender(params.from)) {
       this.logger.warn(`SMS rejeté : expéditeur non officiel (${params.from ?? 'inconnu'}).`);
@@ -146,6 +142,25 @@ export class CheckoutService {
 
     const parsed = parseSms(params.text);
     if (!parsed) return { ok: true, accepted: false, reason: 'unparsable' };
+
+    // Résolution AUTO-CORRECTRICE de la puce réceptrice. Le `?receiver=` indique quelle
+    // règle de l'app a tiré, mais on ne s'y fie pas aveuglément : on relit le RÉSEAU dans
+    // le texte du SMS (Moov vs Mixx/T-Money). Si l'indice est absent ou incohérent avec ce
+    // réseau, on route vers l'UNIQUE puce active de ce réseau. Ainsi une règle mal filtrée
+    // (mauvais « Expéditeur contient ») ne peut PAS bloquer un paiement : le serveur
+    // retrouve seul la bonne puce. (Fallback ignoré si 2 puces actives du même réseau —
+    // ambigu — on garde alors l'indice `?receiver=`.)
+    const hinted = normalizePhone(params.receiverPhone);
+    let account = activeReceivers().find((r) => r.phone === hinted);
+    if ((!account || (parsed.network && account.network !== parsed.network)) && parsed.network) {
+      const sameNetwork = activeReceivers().filter((r) => r.network === parsed.network);
+      if (sameNetwork.length === 1) {
+        account = sameNetwork[0];
+        this.logger.log(`Puce ré-associée via le réseau du SMS (${parsed.network}) → ${account.phone}.`);
+      }
+    }
+    if (!account) return { ok: true, accepted: false, reason: 'unknown_receiver' };
+    const receiverPhone = account.phone;
 
     // (4a) Toujours mettre à jour le solde connu — y compris sur les retraits/débits —
     // sinon la chaîne se désynchronise et les vrais paiements seraient rejetés à tort.
