@@ -123,8 +123,9 @@ après un reboot.
 
 - **Pack Gold** — *Tour de contrôle → Textes & Tarifs → « Paiement Mobile Money — Pack
   Gold »* : interrupteur qui affiche/masque l'option Mobile Money sur l'inscription Gold et
-  l'écran « finalise ton paiement ». (Réglage CMS `gold_mobile_money_enabled`, absent =
-  activé.)
+  l'écran « finalise ton paiement ». (Réglage CMS `gold_mobile_money_enabled`, **absent =
+  MASQUÉ** : par défaut le Gold n'affiche que Chariow ; active l'interrupteur quand le
+  téléphone Listener est prêt et testé.)
 - **Investissement** — le dépôt Mobile Money (Moov, T-Money **et international**) reste
   disponible comme avant, dans l'espace investisseur (bouton « Recharger / Investir »).
 

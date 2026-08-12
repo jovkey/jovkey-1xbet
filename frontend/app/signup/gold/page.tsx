@@ -17,8 +17,8 @@ export default function GoldSignupPage() {
   const [chariowLink, setChariowLink] = useState('');
   // FedaPay masqué par défaut ; réactivable par le super-admin depuis le panel.
   const [fedapayEnabled, setFedapayEnabled] = useState(false);
-  // Mobile Money Gold (Moov / T-Money via Listener) — absent = activé par défaut.
-  const [mmEnabled, setMmEnabled] = useState(true);
+  // Mobile Money Gold (Moov / T-Money via Listener) — absent = MASQUÉ par défaut (Chariow seul).
+  const [mmEnabled, setMmEnabled] = useState(false);
 
   useEffect(() => {
     api('/cms/public').then((c: any) => {
@@ -26,7 +26,7 @@ export default function GoldSignupPage() {
       if (amount > 0) setPrice(amount);
       setChariowLink(c.settings?.chariow_gold_link?.url || '');
       setFedapayEnabled(!!c.settings?.fedapay_enabled?.enabled);
-      setMmEnabled(c.settings?.gold_mobile_money_enabled ? !!c.settings.gold_mobile_money_enabled.enabled : true);
+      setMmEnabled(c.settings?.gold_mobile_money_enabled ? !!c.settings.gold_mobile_money_enabled.enabled : false);
     }).catch(() => {});
   }, []);
 

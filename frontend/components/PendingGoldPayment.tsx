@@ -16,14 +16,14 @@ import MobileMoneyCheckout from '@/components/checkout/MobileMoneyCheckout';
 export default function PendingGoldPayment() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [mmEnabled, setMmEnabled] = useState(true);
+  const [mmEnabled, setMmEnabled] = useState(false);
   const [price, setPrice] = useState(GOLD_PRICE_XOF);
   const [showMm, setShowMm] = useState(false);
 
   useEffect(() => {
     api('/cms/public').then((c: any) => {
       const mm = c.settings?.gold_mobile_money_enabled;
-      setMmEnabled(mm ? !!mm.enabled : true);
+      setMmEnabled(mm ? !!mm.enabled : false);
       const amount = Number(c.settings?.gold_price?.amount);
       if (amount > 0) setPrice(amount);
     }).catch(() => {});

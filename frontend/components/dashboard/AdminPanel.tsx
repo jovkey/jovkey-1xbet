@@ -1183,13 +1183,14 @@ function TextsTab({ superadmin }: { superadmin: boolean }) {
   const [goldAnnounce, setGoldAnnounce] = useState('');
   const [investorAnnounce, setInvestorAnnounce] = useState('');
   const [chariowLink, setChariowLink] = useState('');
-  // Paiement Mobile Money Gold (Moov / T-Money via Listener) — absent = activé par défaut.
-  const [goldMmEnabled, setGoldMmEnabled] = useState(true);
+  // Paiement Mobile Money Gold (Moov / T-Money via Listener) — absent = MASQUÉ par défaut
+  // (on ne montre que Chariow tant que l'admin ne l'active pas explicitement).
+  const [goldMmEnabled, setGoldMmEnabled] = useState(false);
   useEffect(() => {
     api('/cms/public').then((c: any) => {
       setChariowLink(c.settings?.chariow_gold_link?.url ?? '');
       setFedapayEnabled(!!c.settings?.fedapay_enabled?.enabled);
-      setGoldMmEnabled(c.settings?.gold_mobile_money_enabled ? !!c.settings.gold_mobile_money_enabled.enabled : true);
+      setGoldMmEnabled(c.settings?.gold_mobile_money_enabled ? !!c.settings.gold_mobile_money_enabled.enabled : false);
       setPrice(String(c.settings?.gold_price?.amount ?? 5600));
       setPriceLabel(c.settings?.gold_price_label?.text ?? '');
       setLegal(c.settings?.legal_investor?.text ?? '');
