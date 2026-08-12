@@ -369,6 +369,28 @@ def sofa_team_form(team_id: int, last: int = 8) -> dict | None:
     return {"gf": gf / n, "ga": ga / n, "n": n} if n else None
 
 
+def calibrated_reliability(prob_adj: float, mem: dict, league: str | None, form_available: bool) -> int:
+    """Fiabilité affichée CALIBRÉE sur la performance RÉELLE observée, au lieu du brut
+    `proba × 100`. Deux corrections honnêtes qui rendent le % plus précis :
+
+      1) On tire l'estimation vers le taux de réussite RÉEL du moteur dans CE championnat
+         (`league_accuracy`, mis à jour à chaque notation), avec un poids qui grandit avec
+         le nombre de matchs déjà notés — shrinkage bayésien : peu de données → on fait
+         surtout confiance au modèle ; beaucoup de données → le vécu prend le dessus (max 50%).
+      2) Si la forme réelle manquait (repli sur le H2H), l'estimation est structurellement
+         plus faible : on abaisse le plafond de fiabilité au lieu d'afficher un faux 90%.
+    """
+    base = prob_adj
+    acc = (mem.get("league_accuracy", {}) or {}).get(league or "", {})
+    won, total = acc.get("won", 0), acc.get("total", 0)
+    if total >= 5:
+        empirical = won / total
+        weight = min(0.5, total / (total + 20.0))  # jamais plus de 50% de poids au vécu
+        base = (1 - weight) * base + weight * empirical
+    ceiling = 92 if form_available else 75
+    return int(max(40, min(ceiling, round(base * 100))))
+
+
 def analyze_sofa(match_id: int, mem: dict):
     """Analyse réelle d'un match (détail + h2h + forme + stats) → commentaires + marchés, SANS code."""
     ev = sofa_event(match_id)
@@ -426,7 +448,8 @@ def analyze_sofa(match_id: int, mem: dict):
     prob_adj = max(0.08, min(0.92, prob + bias.get(gtype, 0.0) + league_bias))
     odds = round(1.0 / prob_adj * 1.08, 2)
     value = round(prob_adj - 1.0 / odds, 4)
-    reliability = int(max(40, min(92, prob_adj * 100)))
+    # Fiabilité calibrée sur la réussite réelle du championnat + repli honnête si forme absente.
+    reliability = calibrated_reliability(prob_adj, mem, tour, home_xg is not None)
 
     # ── Prédiction des marchés de niche (cartons, tirs, tirs cadrés, hors-jeu) ──
     # Basé sur l'arbitre (sévérité), l'intensité du match (H2H serré) et la forme.
