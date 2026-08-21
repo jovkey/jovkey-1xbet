@@ -41,14 +41,14 @@ export default function Community() {
         <div className="flex-1">
           <div className="w-64 h-96 bg-black rounded-[3rem] border-4 border-slate-700 relative mx-auto shadow-2xl overflow-hidden">
             <div className="bg-electric h-10 w-full flex items-center px-4 text-[10px] font-bold">
-              JOVKEY PREDICTIONS
+              COUPON GRATUIT
             </div>
             <div className="p-4 space-y-4">
               <div className="bg-slate-800 p-2 rounded-lg text-[10px] w-4/5">
                 Nouveau coupon gratuit disponible ! 🚀
               </div>
               <div className="bg-blue-900/50 p-2 rounded-lg text-[10px] w-4/5 ml-auto">
-                Merci Jovkey ! C&apos;est passé ✅
+                Merci ! C&apos;est passé ✅
               </div>
               <div className="bg-slate-800 p-2 rounded-lg">
                 <div className="w-full h-20 bg-slate-700 rounded-md mb-2 flex items-center justify-center text-xs">

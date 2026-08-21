@@ -31,8 +31,11 @@ export default function Navbar() {
     // fixer en haut — d'où le menu qui apparaissait au milieu/bas de l'écran.
     <nav className="fixed top-0 left-0 w-full z-50 glass px-4 md:px-6 py-3 md:py-4">
       <div className="flex justify-between items-center gap-3">
-        <div className="text-xl md:text-2xl font-black tracking-tighter text-gold italic shrink-0">
-          JOVKEY<span className="text-white">-1XBET</span>
+        <div className="shrink-0 leading-none">
+          <div className="text-xl md:text-2xl font-black tracking-tighter text-gold italic">
+            Coupon<span className="text-white"> Gratuit</span>
+          </div>
+          <div className="text-[9px] md:text-[10px] uppercase tracking-[0.3em] text-gray-400 font-semibold mt-0.5">de JovGroup</div>
         </div>
         <div className="hidden md:flex space-x-8 font-medium uppercase text-sm tracking-widest">
           {LINKS.map((l) => (

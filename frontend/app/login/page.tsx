@@ -35,8 +35,9 @@ export default function LoginPage() {
     <main className="min-h-dvh flex items-center justify-center px-6 pt-24 pb-6">
       <Navbar />
       <form onSubmit={submit} className="glass rounded-3xl p-8 w-full max-w-sm" autoComplete="off">
-        <Link href="/" className="text-2xl font-black text-gold italic block mb-6 text-center">
-          JOVKEY-1XBET
+        <Link href="/" className="block mb-6 text-center leading-none">
+          <span className="text-2xl font-black text-gold italic">Coupon Gratuit</span>
+          <span className="block text-[10px] uppercase tracking-[0.3em] text-gray-400 mt-1">de JovGroup</span>
         </Link>
         <h1 className="text-xl font-black mb-1">Espace membre</h1>
         <p className="text-gray-400 text-sm mb-6">Réservé aux membres Gold et Investisseurs.</p>

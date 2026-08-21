@@ -25,7 +25,7 @@ export default function InvestorDisclaimer() {
         <div className="flex items-center gap-3 mb-4">
           <ShieldAlert className="text-gold" />
           <h2 className="text-2xl font-black uppercase">
-            Pack Investisseur — La gestion d&apos;élite par JOVKEY-1XBET
+            Pack Investisseur — La gestion d&apos;élite par Coupon Gratuit
           </h2>
         </div>
         <p className="text-gray-300 mb-5 whitespace-pre-line">{pitch}</p>

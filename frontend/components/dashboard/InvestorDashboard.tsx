@@ -129,7 +129,7 @@ export default function InvestorDashboard() {
   const contactAdmin = async () => {
     try { await api('/investments/contact', { method: 'POST', auth: true, body: {} }); } catch { /* on ouvre WhatsApp quand même */ }
     const num = contactWhatsapp.replace(/\D/g, '');
-    const msg = encodeURIComponent('Bonjour, je souhaite investir chez JOVKEY. Pouvez-vous me guider ?');
+    const msg = encodeURIComponent('Bonjour, je souhaite investir chez Coupon Gratuit. Pouvez-vous me guider ?');
     if (num) window.open(`https://wa.me/${num}?text=${msg}`, '_blank');
     else showToast('Contact enregistré — l’administration te recontactera.');
   };

@@ -38,7 +38,10 @@ export default function DashboardPage() {
   return (
     <main className="min-h-screen px-4 md:px-8 py-6 max-w-5xl mx-auto">
       <header className="flex items-center justify-between mb-8">
-        <Link href="/" className="text-xl font-black text-gold italic">JOVKEY-1XBET</Link>
+        <Link href="/" className="leading-none">
+          <span className="text-xl font-black text-gold italic">Coupon Gratuit</span>
+          <span className="block text-[9px] uppercase tracking-[0.3em] text-gray-400 mt-0.5">de JovGroup</span>
+        </Link>
         <div className="flex items-center gap-3">
           <span className="text-xs uppercase tracking-widest text-gray-400">
             {user.role} · {user.email}

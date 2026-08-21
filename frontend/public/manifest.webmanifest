@@ -1,7 +1,7 @@
 {
-  "name": "JOVKEY-1XBET",
-  "short_name": "JOVKEY",
-  "description": "Pronostics sportifs & gestion de capital — code promo JOVKEY",
+  "name": "Coupon Gratuit",
+  "short_name": "Coupon Gratuit",
+  "description": "Pronostics sportifs & coupons gratuits — code promo JOVKEY",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0f172a",

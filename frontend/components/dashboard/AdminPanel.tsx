@@ -236,7 +236,7 @@ function StatsTab() {
 
 /* ── Demandes Flash (validation via WhatsApp) ───────────── */
 const DEFAULT_WA_MSG =
-  'Bonjour 👋 Votre accès JOVKEY est validé ✅. Voici votre lien pour rejoindre la communauté : ' +
+  'Bonjour 👋 Votre accès Coupon Gratuit est validé ✅. Voici votre lien pour rejoindre la communauté : ' +
   '[COLLE TON LIEN ICI]. Pense à utiliser le code promo JOVKEY. Bienvenue !';
 
 function LeadsTab({ onChange }: { onChange: () => void }) {

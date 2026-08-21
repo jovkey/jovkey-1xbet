@@ -20,7 +20,7 @@ export const GOLD_PRICE_XOF = 5600;
 export const CURRENCY = 'FCFA';
 
 /** Nom public du site (utilisé dans le message WhatsApp de recharge). */
-export const SITE_NAME = 'JOVKEY-1XBET';
+export const SITE_NAME = 'Coupon Gratuit';
 
 /**
  * Numéro WhatsApp de l'agent 1xBet qui reçoit les demandes de recharge/dépôt.
