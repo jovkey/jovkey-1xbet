@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import RechargeModal from '@/components/RechargeModal';
 import InstallAppButton from '@/components/InstallAppButton';
+import PwaRegister from '@/components/PwaRegister';
 
 export const metadata: Metadata = {
   title: 'Coupon Gratuit — Pronostics & Coupons sportifs',
@@ -28,6 +29,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <RechargeModal />
         {/* Bouton flottant « Installer l'appli » (PWA) — visible tant que non installée. */}
         <InstallAppButton />
+        {/* Enregistre le service worker (indispensable à une vraie installation Android). */}
+        <PwaRegister />
       </body>
     </html>
   );

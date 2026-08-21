@@ -6,16 +6,17 @@ import { Download, X, Share } from 'lucide-react';
  * Bouton flottant « Installer l'appli » (PWA). Ajoute l'icône « Coupon Gratuit » sur
  * l'écran d'accueil du téléphone → l'utilisateur relance le site en un tap, en plein écran.
  *
- * - Android / Chrome : on capture l'évènement `beforeinstallprompt`, et le clic déclenche
- *   la vraie fenêtre d'installation native.
- * - iPhone / Safari : iOS ne fournit pas cet évènement → on affiche les étapes manuelles
- *   (Partager → « Sur l'écran d'accueil »).
- * - Déjà installée (mode standalone) : on n'affiche rien.
+ * - Android / Chrome : `beforeinstallprompt` capturé → le clic ouvre la fenêtre native
+ *   d'installation (vraie appli WebAPK, grâce au service worker enregistré dans PwaRegister).
+ * - iPhone / Safari : pas d'évènement natif → on affiche les étapes manuelles.
+ * - Déjà installée, ou masquée par l'utilisateur → on n'affiche plus rien (mémorisé).
  */
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
+
+const HIDDEN_KEY = 'pwa_install_hidden';
 
 export default function InstallAppButton() {
   const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null);
@@ -24,11 +25,13 @@ export default function InstallAppButton() {
   const [showIosHelp, setShowIosHelp] = useState(false);
 
   useEffect(() => {
-    // Déjà installée / lancée depuis l'écran d'accueil → inutile de proposer.
+    // Déjà lancée en mode appli (standalone) → inutile de proposer l'installation.
     const standalone =
       window.matchMedia?.('(display-mode: standalone)').matches ||
       (window.navigator as unknown as { standalone?: boolean }).standalone === true;
     if (standalone) return;
+    // Déjà installée ou masquée volontairement lors d'une visite précédente.
+    try { if (localStorage.getItem(HIDDEN_KEY) === '1') return; } catch { /* localStorage indispo */ }
 
     const ua = window.navigator.userAgent.toLowerCase();
     const ios = /iphone|ipad|ipod/.test(ua);
@@ -39,7 +42,11 @@ export default function InstallAppButton() {
       setDeferred(e as BeforeInstallPromptEvent);
       setVisible(true);
     };
-    const onInstalled = () => { setVisible(false); setDeferred(null); };
+    const onInstalled = () => {
+      try { localStorage.setItem(HIDDEN_KEY, '1'); } catch { /* ignore */ }
+      setVisible(false);
+      setDeferred(null);
+    };
 
     window.addEventListener('beforeinstallprompt', onPrompt);
     window.addEventListener('appinstalled', onInstalled);
@@ -52,10 +59,15 @@ export default function InstallAppButton() {
     };
   }, []);
 
+  const remember = () => { try { localStorage.setItem(HIDDEN_KEY, '1'); } catch { /* ignore */ } };
+
   const handleClick = async () => {
     if (deferred) {
       await deferred.prompt();
-      try { await deferred.userChoice; } catch { /* peu importe le choix */ }
+      try {
+        const { outcome } = await deferred.userChoice;
+        if (outcome === 'accepted') remember(); // installée → ne plus reproposer
+      } catch { /* peu importe */ }
       setDeferred(null);
       setVisible(false);
     } else if (isIOS) {
@@ -63,17 +75,30 @@ export default function InstallAppButton() {
     }
   };
 
+  // Croix : l'utilisateur masque le bouton définitivement (il pourra toujours installer
+  // via le menu de Chrome « Installer l'application »).
+  const dismiss = () => { remember(); setVisible(false); };
+
   if (!visible) return null;
 
   return (
     <>
-      <button
-        onClick={handleClick}
-        className="fixed z-[250] bottom-4 left-4 gold-gradient text-black px-4 py-2.5 rounded-full font-black text-sm shadow-2xl flex items-center gap-2 tap-target hover:scale-105 transition"
-        aria-label="Installer l'application"
-      >
-        <Download size={16} /> Installer l&apos;appli
-      </button>
+      <div className="fixed z-[250] bottom-4 left-4 flex items-center gap-1">
+        <button
+          onClick={handleClick}
+          className="gold-gradient text-black px-4 py-2.5 rounded-full font-black text-sm shadow-2xl flex items-center gap-2 tap-target hover:scale-105 transition"
+          aria-label="Installer l'application"
+        >
+          <Download size={16} /> Installer l&apos;appli
+        </button>
+        <button
+          onClick={dismiss}
+          aria-label="Masquer"
+          className="glass rounded-full p-1.5 shadow-lg text-gray-300 hover:text-white tap-target"
+        >
+          <X size={14} />
+        </button>
+      </div>
 
       {showIosHelp && (
         <div
