@@ -6,17 +6,19 @@ import { Download, X, Share } from 'lucide-react';
  * Bouton flottant « Installer l'appli » (PWA). Ajoute l'icône « Coupon Gratuit » sur
  * l'écran d'accueil du téléphone → l'utilisateur relance le site en un tap, en plein écran.
  *
- * - Android / Chrome : `beforeinstallprompt` capturé → le clic ouvre la fenêtre native
- *   d'installation (vraie appli WebAPK, grâce au service worker enregistré dans PwaRegister).
- * - iPhone / Safari : pas d'évènement natif → on affiche les étapes manuelles.
- * - Déjà installée, ou masquée par l'utilisateur → on n'affiche plus rien (mémorisé).
+ * Affichage AUTO-ADAPTATIF (aucun masquage permanent) :
+ * - Déjà lancée en mode appli (standalone) → jamais affiché.
+ * - Android / Chrome : affiché uniquement quand `beforeinstallprompt` se déclenche, c'est-à-dire
+ *   quand l'appli N'EST PAS installée. Une fois installée, Chrome cesse d'émettre l'évènement →
+ *   le bouton disparaît tout seul ; si l'utilisateur DÉSINSTALLE, l'évènement revient → le
+ *   bouton réapparaît. Une nouvelle personne le voit donc toujours.
+ * - iPhone / Safari : pas d'évènement natif → on l'affiche et le clic montre les étapes manuelles.
+ * - La croix ✕ masque seulement pour la visite en cours (il revient au prochain passage).
  */
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
-
-const HIDDEN_KEY = 'pwa_install_hidden';
 
 export default function InstallAppButton() {
   const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null);
@@ -30,8 +32,6 @@ export default function InstallAppButton() {
       window.matchMedia?.('(display-mode: standalone)').matches ||
       (window.navigator as unknown as { standalone?: boolean }).standalone === true;
     if (standalone) return;
-    // Déjà installée ou masquée volontairement lors d'une visite précédente.
-    try { if (localStorage.getItem(HIDDEN_KEY) === '1') return; } catch { /* localStorage indispo */ }
 
     const ua = window.navigator.userAgent.toLowerCase();
     const ios = /iphone|ipad|ipod/.test(ua);
@@ -42,11 +42,8 @@ export default function InstallAppButton() {
       setDeferred(e as BeforeInstallPromptEvent);
       setVisible(true);
     };
-    const onInstalled = () => {
-      try { localStorage.setItem(HIDDEN_KEY, '1'); } catch { /* ignore */ }
-      setVisible(false);
-      setDeferred(null);
-    };
+    // Installée pendant la session → on cache (Chrome ne réémettra plus l'évènement).
+    const onInstalled = () => { setVisible(false); setDeferred(null); };
 
     window.addEventListener('beforeinstallprompt', onPrompt);
     window.addEventListener('appinstalled', onInstalled);
@@ -59,25 +56,19 @@ export default function InstallAppButton() {
     };
   }, []);
 
-  const remember = () => { try { localStorage.setItem(HIDDEN_KEY, '1'); } catch { /* ignore */ } };
-
   const handleClick = async () => {
     if (deferred) {
       await deferred.prompt();
-      try {
-        const { outcome } = await deferred.userChoice;
-        if (outcome === 'accepted') remember(); // installée → ne plus reproposer
-      } catch { /* peu importe */ }
+      try { await deferred.userChoice; } catch { /* peu importe le choix */ }
       setDeferred(null);
-      setVisible(false);
+      setVisible(false); // l'évènement appinstalled confirmera si besoin
     } else if (isIOS) {
       setShowIosHelp(true);
     }
   };
 
-  // Croix : l'utilisateur masque le bouton définitivement (il pourra toujours installer
-  // via le menu de Chrome « Installer l'application »).
-  const dismiss = () => { remember(); setVisible(false); };
+  // Croix : masque seulement pour la visite en cours (revient au prochain passage).
+  const dismiss = () => setVisible(false);
 
   if (!visible) return null;
 
