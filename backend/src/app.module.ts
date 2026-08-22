@@ -17,6 +17,7 @@ import { StatsModule } from './stats/stats.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { CheckoutModule } from './checkout/checkout.module';
+import { PushModule } from './push/push.module';
 import { HealthController } from './health/health.controller';
 
 @Module({
@@ -42,6 +43,7 @@ import { HealthController } from './health/health.controller';
     InvestmentsModule,
     PaymentsModule,
     CheckoutModule,
+    PushModule,
     MediaModule,
     StatsModule,
   ],

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeService } from '../realtime/realtime.service';
+import { PushService } from '../push/push.service';
 import { IngestPredictionDto, ManualPredictionDto } from './predictions.controller';
 
 @Injectable()
@@ -8,7 +9,19 @@ export class PredictionsService {
   constructor(
     private prisma: PrismaService,
     private realtime: RealtimeService,
+    private push: PushService,
   ) {}
+
+  /** Notifie tous les appareils abonnés qu'un coupon gratuit vient d'être publié. */
+  private notifyFreeCoupon() {
+    this.push
+      .sendToAll({
+        title: '🎁 Coupon gratuit disponible !',
+        body: "Un nouveau coupon gratuit vient d'être publié. Ouvre l'appli pour le voir et le copier.",
+        url: '/',
+      })
+      .catch(() => { /* le push ne doit jamais bloquer la publication */ });
+  }
 
   /**
    * Mémoire d'apprentissage du moteur (marché → précision/biais, historique, leçons).
@@ -96,6 +109,7 @@ export class PredictionsService {
       },
     });
     this.realtime.emit({ type: 'prediction.new', data: { tier: p.tier, market: p.market } });
+    if (p.tier === 'free') this.notifyFreeCoupon(); // push à tous les appareils installés
     return p;
   }
 
@@ -120,6 +134,7 @@ export class PredictionsService {
       },
     });
     this.realtime.emit({ type: 'prediction.new', data: { tier: p.tier, market: p.market } });
+    if (p.tier === 'free') this.notifyFreeCoupon(); // push à tous les appareils installés
     return p;
   }
 

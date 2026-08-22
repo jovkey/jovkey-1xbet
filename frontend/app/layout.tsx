@@ -3,6 +3,7 @@ import './globals.css';
 import RechargeModal from '@/components/RechargeModal';
 import InstallAppButton from '@/components/InstallAppButton';
 import PwaRegister from '@/components/PwaRegister';
+import NotificationsOptIn from '@/components/NotificationsOptIn';
 
 export const metadata: Metadata = {
   title: 'Coupon Gratuit — Pronostics & Coupons sportifs',
@@ -31,6 +32,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <InstallAppButton />
         {/* Enregistre le service worker (indispensable à une vraie installation Android). */}
         <PwaRegister />
+        {/* Invite à activer les notifications push (coupons + messages admin). */}
+        <NotificationsOptIn />
       </body>
     </html>
   );

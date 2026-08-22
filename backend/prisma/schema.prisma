@@ -439,3 +439,17 @@ model SimState {
 
   @@map("sim_states")
 }
+
+/// Abonnement aux notifications push Web (un par appareil/navigateur ayant installé l'app
+/// et accepté les notifications). Sert à prévenir tout le monde quand un coupon gratuit est
+/// publié, ou pour un message diffusé par l'admin. `endpoint` unique = anti-doublon.
+model PushSubscription {
+  id        String   @id @default(cuid())
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userId    String?  @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("push_subscriptions")
+}

@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import {
   BarChart3, Megaphone, Images, Film, MessageSquareWarning, Inbox, Users, RefreshCw,
   CreditCard, ArrowDownToLine, ShieldCheck, LogOut, Menu, Brain, FileText, Upload, HandCoins,
-  TrendingUp,
+  TrendingUp, Bell, Send,
 } from 'lucide-react';
 import { api, apiUpload } from '@/lib/api';
 import { AuthUser } from '@/lib/types';
@@ -13,7 +13,7 @@ import { useRealtime } from '@/lib/useRealtime';
 
 type Tab =
   | 'stats' | 'sales' | 'leads' | 'payments' | 'withdrawals' | 'predictions'
-  | 'marquee' | 'carousel' | 'video' | 'media' | 'texts' | 'reviews' | 'users' | 'investors';
+  | 'marquee' | 'carousel' | 'video' | 'media' | 'texts' | 'reviews' | 'users' | 'investors' | 'push';
 
 const fmt = (n: number) => `${Math.round(n).toLocaleString('fr-FR')} FCFA`;
 
@@ -37,6 +37,7 @@ const NAV: { group: string; items: { id: Tab; label: string; icon: any }[] }[] =
   { group: 'Communauté', items: [
     { id: 'reviews', label: 'Avis', icon: MessageSquareWarning },
     { id: 'users', label: 'Membres', icon: Users },
+    { id: 'push', label: 'Notifications', icon: Bell },
   ]},
   { group: 'Analytics', items: [
     { id: 'sales', label: 'Ventes & Paiements', icon: TrendingUp },
@@ -120,6 +121,7 @@ export default function AdminPanel({ user, onLogout }: { user: AuthUser; onLogou
         {tab === 'reviews' && <ReviewsTab />}
         {tab === 'users' && <UsersTab superadmin={user.role === 'superadmin'} />}
         {tab === 'investors' && <InvestorsTab />}
+        {tab === 'push' && <PushBroadcastTab />}
       </section>
     </main>
   );
@@ -1115,6 +1117,68 @@ function PredictionsTab() {
           </div>
         );
       })()}
+    </div>
+  );
+}
+
+/* ── Notifications push (diffusion à tous les appareils installés) ── */
+function PushBroadcastTab() {
+  const [title, setTitle] = useState('🎁 Nouveau coupon gratuit !');
+  const [body, setBody] = useState('');
+  const [count, setCount] = useState<number | null>(null);
+  const [enabled, setEnabled] = useState(true);
+  const [busy, setBusy] = useState(false);
+
+  const load = () =>
+    api<{ count: number; enabled: boolean }>('/push/count', { auth: true })
+      .then((r) => { setCount(r.count); setEnabled(r.enabled); })
+      .catch(() => {});
+  useEffect(() => { load(); }, []);
+
+  const send = async () => {
+    if (!body.trim()) { showToast('Écris un message.'); return; }
+    setBusy(true);
+    try {
+      const r = await api<{ sent: number; failed: number; total: number }>('/push/send', {
+        method: 'POST', auth: true, body: { title: title.trim(), body: body.trim(), url: '/' },
+      });
+      showToast(`Envoyé à ${r.sent}/${r.total} appareil(s).`);
+      setBody('');
+    } catch (e: any) {
+      showToast(e.message || 'Envoi impossible.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="space-y-5 max-w-2xl">
+      <div className="glass rounded-2xl p-6 border border-gold/30">
+        <h3 className="font-black mb-1 flex items-center gap-2"><Bell size={18} className="text-gold" /> Notification à tous les installés</h3>
+        <p className="text-gray-400 text-sm mb-4">
+          Écris un message : tous les appareils ayant installé l&apos;appli et accepté les
+          notifications le reçoivent directement sur leur écran (même appli fermée). Un coupon
+          gratuit publié envoie déjà une notif automatique — ceci sert aux annonces libres.
+        </p>
+        <div className="text-xs text-gray-400 mb-4">
+          {enabled ? (
+            <>Appareils abonnés : <b className="text-gold">{count ?? '…'}</b></>
+          ) : (
+            <span className="text-red-400">Push désactivé côté serveur (clés VAPID manquantes).</span>
+          )}
+        </div>
+        <label className="block text-xs uppercase tracking-widest text-gray-400 mb-1">Titre</label>
+        <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={80}
+          className="w-full glass rounded-xl px-4 mb-3 tap-target outline-none focus:border-gold" />
+        <label className="block text-xs uppercase tracking-widest text-gray-400 mb-1">Message</label>
+        <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={3} maxLength={250}
+          placeholder="Ex : Grosse cote du jour dispo ! Ouvre l'appli 🔥"
+          className="w-full glass rounded-xl px-4 py-3 mb-4 outline-none focus:border-gold" />
+        <button onClick={send} disabled={busy || !enabled}
+          className="gold-gradient text-black rounded-xl font-black tap-target px-6 inline-flex items-center gap-2 disabled:opacity-60">
+          <Send size={16} /> {busy ? 'Envoi…' : 'Envoyer à tous'}
+        </button>
+      </div>
     </div>
   );
 }
