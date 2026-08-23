@@ -42,11 +42,12 @@ export default function HomePage() {
               Déjà membre ?{' '}
               <Link href="/login" className="text-gold underline">Connexion</Link>
             </div>
-            {/* Actions secondaires : coupon gratuit d'abord, puis recharger / retrait (plus petits) */}
-            <div className="flex flex-col md:flex-row gap-3 justify-center mt-2">
-              <a href="#coupons" className="glass px-7 rounded-xl font-bold text-base hover:bg-white/10 transition tap-target flex items-center justify-center">
-                COUPON GRATUIT
-              </a>
+            {/* Coupon gratuit : va DIRECTEMENT à la cote gratuite (pas au carrousel). */}
+            <a href="#coupon-gratuit" className="glass px-8 rounded-xl font-bold text-base hover:bg-white/10 transition tap-target flex items-center justify-center">
+              COUPON GRATUIT
+            </a>
+            {/* Recharger / retrait : plus petits, juste en dessous. */}
+            <div className="flex flex-row gap-2 justify-center mt-1">
               <RechargeButton mode="deposit" />
               <RechargeButton mode="withdraw" />
             </div>

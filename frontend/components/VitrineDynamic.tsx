@@ -31,7 +31,11 @@ export default function VitrineDynamic() {
     <>
       <Carousel slides={cms.slides} />
       <TutorialVideo video={cms.settings?.tutorial_video} />
-      <FreeCoupon prediction={free} video={cms.settings?.tutorial_video} settings={cms.settings} />
+      {/* Cible du bouton « COUPON GRATUIT » : on saute directement ici (pas au carrousel).
+          scroll-mt évite que le titre passe sous la navbar fixe. */}
+      <div id="coupon-gratuit" className="scroll-mt-24">
+        <FreeCoupon prediction={free} video={cms.settings?.tutorial_video} settings={cms.settings} />
+      </div>
       <FlashFunnelModal video={cms.settings?.tutorial_video} />
     </>
   );

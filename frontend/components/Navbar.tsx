@@ -13,7 +13,7 @@ import { openRecharge } from '@/lib/recharge';
 const LINKS = [
   { href: '/#home', label: 'Accueil' },
   { href: '/#vip', label: 'VIP' },
-  { href: '/#coupons', label: 'Coupons' },
+  { href: '/#coupon-gratuit', label: 'Coupons' },
   { href: '/#community', label: 'Communauté' },
 ];
 

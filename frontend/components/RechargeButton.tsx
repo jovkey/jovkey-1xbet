@@ -21,12 +21,12 @@ export default function RechargeButton({
     <button
       onClick={() => openRecharge(mode)}
       className={
-        'glass px-5 py-2.5 rounded-lg font-bold text-sm hover:bg-white/10 transition tap-target ' +
-        'flex items-center justify-center gap-2 border border-gold/30 text-gold ' +
+        'glass px-3.5 py-1.5 rounded-lg font-semibold text-xs hover:bg-white/10 transition ' +
+        'flex items-center justify-center gap-1.5 border border-gold/30 text-gold ' +
         className
       }
     >
-      <Icon size={16} /> {label}
+      <Icon size={14} /> {label}
     </button>
   );
 }
