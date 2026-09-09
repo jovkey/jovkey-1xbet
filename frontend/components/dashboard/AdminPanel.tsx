@@ -1247,12 +1247,18 @@ function TextsTab({ superadmin }: { superadmin: boolean }) {
   const [goldAnnounce, setGoldAnnounce] = useState('');
   const [investorAnnounce, setInvestorAnnounce] = useState('');
   const [chariowLink, setChariowLink] = useState('');
+  // Liens des groupes gratuits (WhatsApp/Telegram) — éditables ici car ces liens
+  // d'invitation expirent de temps en temps ; pas besoin d'un redéploiement pour les changer.
+  const [communityWhatsapp, setCommunityWhatsapp] = useState('');
+  const [communityTelegram, setCommunityTelegram] = useState('');
   // Paiement Mobile Money Gold (Moov / T-Money via Listener) — absent = MASQUÉ par défaut
   // (on ne montre que Chariow tant que l'admin ne l'active pas explicitement).
   const [goldMmEnabled, setGoldMmEnabled] = useState(false);
   useEffect(() => {
     api('/cms/public').then((c: any) => {
       setChariowLink(c.settings?.chariow_gold_link?.url ?? '');
+      setCommunityWhatsapp(c.settings?.community_whatsapp_link?.url ?? 'https://chat.whatsapp.com/Cwj5GyagLh7HGKM14d2HWn');
+      setCommunityTelegram(c.settings?.community_telegram_link?.url ?? 'https://t.me/+gI80LAtr1zRlNmM0');
       setFedapayEnabled(!!c.settings?.fedapay_enabled?.enabled);
       setGoldMmEnabled(c.settings?.gold_mobile_money_enabled ? !!c.settings.gold_mobile_money_enabled.enabled : false);
       setPrice(String(c.settings?.gold_price?.amount ?? 5600));
@@ -1272,6 +1278,30 @@ function TextsTab({ superadmin }: { superadmin: boolean }) {
   };
   return (
     <div className="space-y-5 max-w-2xl">
+      {/* Liens des groupes gratuits — le bouton hero « Rejoindre le groupe » et la section
+          communauté pointent vers ces liens. Change-les ici (sans redéploiement) quand un
+          lien d'invitation WhatsApp/Telegram expire. */}
+      <div className="glass rounded-2xl p-6 border border-electric/30">
+        <h3 className="font-black mb-1">Liens des groupes gratuits</h3>
+        <p className="text-gray-400 text-sm mb-3">
+          Utilisés par le bouton « Rejoindre le groupe » de l&apos;accueil et par la section
+          communauté. Remplace-les ici quand un lien d&apos;invitation expire.
+        </p>
+        <label className="block text-xs uppercase tracking-widest text-gray-400 mb-1">Lien du groupe WhatsApp</label>
+        <input value={communityWhatsapp} onChange={(e) => setCommunityWhatsapp(e.target.value)}
+          placeholder="https://chat.whatsapp.com/xxxxxxxx"
+          className="w-full glass rounded-xl px-4 mb-3 tap-target outline-none focus:border-electric" />
+        <label className="block text-xs uppercase tracking-widest text-gray-400 mb-1">Lien du groupe Telegram</label>
+        <input value={communityTelegram} onChange={(e) => setCommunityTelegram(e.target.value)}
+          placeholder="https://t.me/+xxxxxxxx"
+          className="w-full glass rounded-xl px-4 mb-3 tap-target outline-none focus:border-electric" />
+        <button onClick={async () => {
+            await saveSetting('community_whatsapp_link', { url: communityWhatsapp.trim() }, 'Lien WhatsApp');
+            await saveSetting('community_telegram_link', { url: communityTelegram.trim() }, 'Lien Telegram');
+          }}
+          className="bg-electric text-black rounded-xl font-black tap-target px-6">Enregistrer les liens</button>
+      </div>
+
       {/* Lien de paiement rapide Chariow — colle ici le lien du produit Gold de ta boutique.
           Tant qu'il est vide, le bouton « Paiement rapide » n'apparaît pas côté client. */}
       <div className="glass rounded-2xl p-6 border border-gold/30">

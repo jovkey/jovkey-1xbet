@@ -30,6 +30,11 @@ const config: Config = {
           '70%': { transform: 'scale(1.05)', boxShadow: '0 0 0 15px rgba(245,158,11,0)' },
           '100%': { transform: 'scale(1)', boxShadow: '0 0 0 0 rgba(245,158,11,0)' },
         },
+        pulseElectric: {
+          '0%': { transform: 'scale(1)', boxShadow: '0 0 0 0 rgba(59,130,246,0.5)' },
+          '70%': { transform: 'scale(1.05)', boxShadow: '0 0 0 15px rgba(59,130,246,0)' },
+          '100%': { transform: 'scale(1)', boxShadow: '0 0 0 0 rgba(59,130,246,0)' },
+        },
         shimmer: {
           from: { backgroundPosition: '-200% 0' },
           to: { backgroundPosition: '200% 0' },
@@ -41,6 +46,7 @@ const config: Config = {
       },
       animation: {
         pulseGold: 'pulseGold 2s infinite',
+        pulseElectric: 'pulseElectric 2s infinite',
         shimmer: 'shimmer 2s infinite linear',
         marquee: 'marquee var(--marquee-duration, 20s) linear infinite',
       },

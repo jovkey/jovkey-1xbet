@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
+import GeneralGroupButton from '@/components/GeneralGroupButton';
 import RechargeButton from '@/components/RechargeButton';
 import MarqueeBar from '@/components/MarqueeBar';
 import VitrineDynamic from '@/components/VitrineDynamic';
@@ -35,10 +36,8 @@ export default function HomePage() {
           </p>
           <div className="flex flex-col items-center gap-3">
             {/* CTA principal : groupe général gratuit d'abord (conversion vers le Pack Flash), puis groupe VIP */}
-            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-              <a href="#community" className="bg-electric text-black px-8 rounded-xl font-black text-base md:text-lg shadow-2xl tap-target flex items-center justify-center text-center">
-                REJOINDRE LE GROUPE GÉNÉRAL GRATUITEMENT
-              </a>
+            <div className="flex flex-col sm:flex-row items-center gap-3">
+              <GeneralGroupButton />
               <a href="#vip" className="gold-gradient text-black px-8 rounded-xl font-black text-base md:text-lg shadow-2xl animate-pulseGold tap-target flex items-center justify-center text-center">
                 REJOINDRE LE GROUPE VIP
               </a>

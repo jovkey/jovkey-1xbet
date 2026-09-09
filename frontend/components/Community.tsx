@@ -1,7 +1,10 @@
+'use client';
 import { Send, MessageCircle, Lock } from 'lucide-react';
 import CommunityCta from './CommunityCta';
+import { useCommunityLinks } from '@/lib/useCommunityLinks';
 
 export default function Community() {
+  const links = useCommunityLinks();
   return (
     <section id="community" className="py-20 bg-slate-900/50 px-6">
       <div className="max-w-5xl mx-auto glass p-10 rounded-3xl flex flex-col md:flex-row items-center gap-10">
@@ -27,11 +30,11 @@ export default function Community() {
           </div>
           <CommunityCta />
           <div className="flex flex-wrap gap-4 mt-4">
-            <a href="https://t.me/+gI80LAtr1zRlNmM0" target="_blank" rel="noopener noreferrer"
+            <a href={links.telegram} target="_blank" rel="noopener noreferrer"
               className="flex items-center bg-[#229ED9] px-6 rounded-xl font-bold hover:brightness-110 transition tap-target">
               <Send className="mr-3" /> Telegram
             </a>
-            <a href="https://chat.whatsapp.com/IbNKAjNHPoaGgHjRJkq7Xr" target="_blank" rel="noopener noreferrer"
+            <a href={links.whatsapp} target="_blank" rel="noopener noreferrer"
               className="flex items-center bg-[#25D366] px-6 rounded-xl font-bold hover:brightness-110 transition tap-target">
               <MessageCircle className="mr-3" /> WhatsApp
             </a>
