@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
-import { Menu, X, Wallet, ArrowDownToLine } from 'lucide-react';
+import { Menu, X, Wallet, ArrowDownToLine, Home, Crown, Gift, Users, UserPlus, LogIn } from 'lucide-react';
 import { copyText } from '@/lib/clipboard';
 import { track } from '@/lib/api';
 import { PROMO_CODE } from '@/lib/config';
@@ -11,10 +11,10 @@ import { openRecharge } from '@/lib/recharge';
 // /login et /signup, où un simple #vip ne ferait rien (pas de section à cet id sur ces
 // pages) — /#vip revient d'abord sur l'accueil puis scrolle jusqu'à la section.
 const LINKS = [
-  { href: '/#home', label: 'Accueil' },
-  { href: '/#vip', label: 'VIP' },
-  { href: '/#coupon-gratuit', label: 'Coupons' },
-  { href: '/#community', label: 'Communauté' },
+  { href: '/#home', label: 'Accueil', icon: Home },
+  { href: '/#vip', label: 'VIP', icon: Crown },
+  { href: '/#coupon-gratuit', label: 'Coupons', icon: Gift },
+  { href: '/#community', label: 'Communauté', icon: Users },
 ];
 
 export default function Navbar() {
@@ -61,38 +61,42 @@ export default function Navbar() {
           <button
             onClick={() => setOpen((v) => !v)}
             aria-label={open ? 'Fermer le menu' : 'Ouvrir le menu'}
-            className="md:hidden glass rounded-xl p-2 tap-target"
+            className={`md:hidden rounded-xl p-3 tap-target shadow-lg transition ${
+              open ? 'bg-white text-black' : 'gold-gradient text-black'
+            }`}
           >
-            {open ? <X size={20} /> : <Menu size={20} />}
+            {open ? <X size={26} strokeWidth={3} /> : <Menu size={26} strokeWidth={3} />}
           </button>
         </div>
       </div>
 
       {open && (
-        <div className="md:hidden mt-3 pb-2 flex flex-col gap-1 font-medium uppercase text-sm tracking-widest">
+        <div className="md:hidden absolute left-0 right-0 top-full mt-2 mx-3 p-3 rounded-2xl bg-night border border-white/10 shadow-2xl flex flex-col gap-2 font-black uppercase text-base tracking-wide z-50">
           {LINKS.map((l) => (
             <a key={l.href} href={l.href} onClick={() => setOpen(false)}
-              className="px-3 py-3 rounded-xl hover:bg-white/10 hover:text-gold transition">
-              {l.label}
+              className="px-4 py-4 rounded-xl bg-white/5 active:bg-gold/20 hover:bg-white/10 hover:text-gold transition flex items-center gap-3">
+              <l.icon size={22} className="text-gold shrink-0" /> {l.label}
             </a>
           ))}
           <button
             onClick={() => { setOpen(false); openRecharge('deposit'); }}
-            className="text-left px-3 py-3 rounded-xl hover:bg-white/10 hover:text-gold transition inline-flex items-center gap-2 text-gold"
+            className="text-left px-4 py-4 rounded-xl bg-gold/10 active:bg-gold/20 hover:bg-gold/20 transition flex items-center gap-3 text-gold"
           >
-            <Wallet size={16} /> Recharger mon compte
+            <Wallet size={22} className="shrink-0" /> Recharger mon compte
           </button>
           <button
             onClick={() => { setOpen(false); openRecharge('withdraw'); }}
-            className="text-left px-3 py-3 rounded-xl hover:bg-white/10 hover:text-gold transition inline-flex items-center gap-2 text-gold"
+            className="text-left px-4 py-4 rounded-xl bg-gold/10 active:bg-gold/20 hover:bg-gold/20 transition flex items-center gap-3 text-gold"
           >
-            <ArrowDownToLine size={16} /> Faire un retrait
+            <ArrowDownToLine size={22} className="shrink-0" /> Faire un retrait
           </button>
-          <Link href="/signup" onClick={() => setOpen(false)} className="px-3 py-3 rounded-xl hover:bg-white/10 hover:text-gold transition">
-            S&apos;inscrire
+          <Link href="/signup" onClick={() => setOpen(false)}
+            className="px-4 py-4 rounded-xl bg-white/5 active:bg-gold/20 hover:bg-white/10 hover:text-gold transition flex items-center gap-3">
+            <UserPlus size={22} className="text-gold shrink-0" /> S&apos;inscrire
           </Link>
-          <Link href="/login" onClick={() => setOpen(false)} className="px-3 py-3 rounded-xl hover:bg-white/10 hover:text-gold transition">
-            Connexion
+          <Link href="/login" onClick={() => setOpen(false)}
+            className="px-4 py-4 rounded-xl bg-white/5 active:bg-gold/20 hover:bg-white/10 hover:text-gold transition flex items-center gap-3">
+            <LogIn size={22} className="text-gold shrink-0" /> Connexion
           </Link>
         </div>
       )}
