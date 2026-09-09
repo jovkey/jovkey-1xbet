@@ -34,10 +34,15 @@ export default function HomePage() {
             et reçois jusqu&apos;à 200% de bonus immédiat.
           </p>
           <div className="flex flex-col items-center gap-3">
-            {/* CTA principal + connexion juste en dessous */}
-            <a href="#vip" className="gold-gradient text-black px-10 rounded-xl font-black text-lg shadow-2xl animate-pulseGold tap-target flex items-center justify-center">
-              REJOINDRE LE VIP
-            </a>
+            {/* CTA principal : groupe général gratuit d'abord (conversion vers le Pack Flash), puis groupe VIP */}
+            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+              <a href="#community" className="bg-electric text-black px-8 rounded-xl font-black text-base md:text-lg shadow-2xl tap-target flex items-center justify-center text-center">
+                REJOINDRE LE GROUPE GÉNÉRAL GRATUITEMENT
+              </a>
+              <a href="#vip" className="gold-gradient text-black px-8 rounded-xl font-black text-base md:text-lg shadow-2xl animate-pulseGold tap-target flex items-center justify-center text-center">
+                REJOINDRE LE GROUPE VIP
+              </a>
+            </div>
             <div className="text-sm text-gray-500">
               Déjà membre ?{' '}
               <Link href="/login" className="text-gold underline">Connexion</Link>
