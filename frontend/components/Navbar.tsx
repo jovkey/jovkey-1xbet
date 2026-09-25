@@ -1,10 +1,10 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
-import { Menu, X, Wallet, ArrowDownToLine, Home, Crown, Gift, Users, UserPlus, LogIn } from 'lucide-react';
+import { Menu, X, Wallet, ArrowDownToLine, Home, Crown, Gift, Users, UserPlus, LogIn, Download } from 'lucide-react';
 import { copyText } from '@/lib/clipboard';
 import { track } from '@/lib/api';
-import { PROMO_CODE } from '@/lib/config';
+import { PROMO_CODE, DOWNLOAD_1XBET_URL } from '@/lib/config';
 import { openRecharge } from '@/lib/recharge';
 
 // Chemins absolus (/#vip) plutôt que relatifs (#vip) : la navbar est réutilisée sur
@@ -49,6 +49,10 @@ export default function Navbar() {
           </button>
           <Link href="/signup" className="hover:text-gold transition">S&apos;inscrire</Link>
           <Link href="/login" className="hover:text-gold transition">Connexion</Link>
+          <a href={DOWNLOAD_1XBET_URL} target="_blank" rel="noopener noreferrer"
+            className="bg-live text-black px-3 py-1 rounded-full font-black inline-flex items-center gap-1 hover:brightness-110 transition whitespace-nowrap">
+            <Download size={14} /> Télécharger 1xBet
+          </a>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {/* Toujours visible (aussi replié) : le code promo doit rester copiable en 1 tap, où qu'on soit. */}
@@ -98,6 +102,10 @@ export default function Navbar() {
             className="px-4 py-4 rounded-xl bg-white/5 active:bg-gold/20 hover:bg-white/10 hover:text-gold transition flex items-center gap-3">
             <LogIn size={22} className="text-gold shrink-0" /> Connexion
           </Link>
+          <a href={DOWNLOAD_1XBET_URL} target="_blank" rel="noopener noreferrer" onClick={() => setOpen(false)}
+            className="px-4 py-4 rounded-xl bg-live text-black active:brightness-90 hover:brightness-110 transition flex items-center gap-3">
+            <Download size={22} className="shrink-0" /> Télécharger 1xBet
+          </a>
         </div>
       )}
     </nav>

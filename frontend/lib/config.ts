@@ -12,6 +12,9 @@ function cleanUrl(value: string | undefined, fallback: string): string {
 export const API_URL = cleanUrl(process.env.NEXT_PUBLIC_API_URL, 'http://localhost:4000');
 export const PROMO_CODE = (process.env.NEXT_PUBLIC_PROMO_CODE || 'JOVKEY').trim();
 
+/** Lien officiel (affilié) de téléchargement de 1xBet. */
+export const DOWNLOAD_1XBET_URL = 'https://reffpa.com/L?tag=d_790067m_97c_&site=790067&ad=97';
+
 /** Préfixe l'URL relative d'un média (/uploads/...) par l'hôte de l'API. */
 export const mediaUrl = (url: string) => (url?.startsWith('/') ? `${API_URL}${url}` : url);
 
