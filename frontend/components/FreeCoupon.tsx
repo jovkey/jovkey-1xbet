@@ -75,7 +75,7 @@ export default function FreeCoupon({
             <p className="text-sm text-gray-200 mb-4">{message}</p>
             <div className="grid md:grid-cols-2 gap-4 items-center">
               <div className="aspect-[9/16] max-w-[200px] mx-auto w-full rounded-2xl overflow-hidden bg-black border border-white/10">
-                {video?.provider === 'cloudinary' && video?.url ? (
+                {(video?.provider === 'cloudinary' || video?.provider === 'external') && video?.url ? (
                   <video className="w-full h-full object-cover" src={video.url} controls playsInline />
                 ) : video?.provider === 'upload' && video?.url ? (
                   <video className="w-full h-full object-cover" src={mediaUrl(video.url)} controls playsInline />

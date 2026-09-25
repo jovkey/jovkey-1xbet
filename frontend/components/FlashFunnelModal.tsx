@@ -96,7 +96,7 @@ export default function FlashFunnelModal({ video }: { video?: VideoSetting }) {
 
             {showVideo && (
               <div className="aspect-[9/16] max-h-[45vh] w-full rounded-2xl overflow-hidden mb-4 bg-black">
-                {video?.provider === 'cloudinary' && video?.url ? (
+                {(video?.provider === 'cloudinary' || video?.provider === 'external') && video?.url ? (
                   <video className="w-full h-full" src={video.url} controls playsInline />
                 ) : video?.provider === 'upload' && video?.url ? (
                   <video className="w-full h-full" src={mediaUrl(video.url)} controls playsInline />

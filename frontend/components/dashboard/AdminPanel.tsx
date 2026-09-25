@@ -615,6 +615,16 @@ function VideoTab() {
   const [current, setCurrent] = useState<any>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
+  // Fichier choisi mais pas encore envoyé : l'envoi se fait au clic sur « Mettre à jour ».
+  const [pickedFile, setPickedFile] = useState<File | null>(null);
+  const [pickedPreview, setPickedPreview] = useState('');
+
+  useEffect(() => {
+    if (!pickedFile) { setPickedPreview(''); return; }
+    const url = URL.createObjectURL(pickedFile);
+    setPickedPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [pickedFile]);
 
   useEffect(() => {
     api('/cms/public').then((c: any) => {
@@ -676,6 +686,7 @@ function VideoTab() {
         body: { value: { provider: 'cloudinary', url: data.secure_url } },
       });
       setCurrent({ provider: 'cloudinary', url: data.secure_url });
+      setPickedFile(null);
       showToast('Vidéo envoyée sur Cloudinary et définie comme tutoriel');
     } catch (e: any) {
       setUploadError(e.message || 'Upload impossible.');
@@ -722,7 +733,7 @@ function VideoTab() {
           </p>
           <input value={extUrl} onChange={(e) => setExtUrl(e.target.value)}
             placeholder="https://res.cloudinary.com/.../video.mp4" className="w-full glass rounded-xl px-4 mb-4 tap-target outline-none focus:border-gold" />
-          <button onClick={saveExternal} className="gold-gradient text-black rounded-xl font-black tap-target px-6">Définir ce lien</button>
+          <button onClick={saveExternal} className="gold-gradient text-black rounded-xl font-black tap-target px-6">Mettre à jour</button>
           {current?.provider === 'external' && current?.url && (
             <video src={current.url} controls className="w-full rounded-xl mt-4 max-h-56" />
           )}
@@ -737,13 +748,27 @@ function VideoTab() {
             type="file"
             accept="video/*"
             disabled={uploading}
-            onChange={(e) => e.target.files?.[0] && uploadToCloudinary(e.target.files[0])}
-            className="w-full glass rounded-xl px-4 py-3 tap-target outline-none focus:border-gold disabled:opacity-60"
+            onChange={(e) => { setUploadError(''); setPickedFile(e.target.files?.[0] ?? null); }}
+            className="w-full glass rounded-xl px-4 py-3 mb-4 tap-target outline-none focus:border-gold disabled:opacity-60"
           />
-          {uploading && <p className="text-gold text-sm mt-3">Envoi en cours…</p>}
+          <button
+            onClick={() => pickedFile && uploadToCloudinary(pickedFile)}
+            disabled={!pickedFile || uploading}
+            className="gold-gradient text-black rounded-xl font-black tap-target px-6 disabled:opacity-50"
+          >
+            {uploading ? 'Envoi en cours…' : 'Mettre à jour'}
+          </button>
+          {!pickedFile && <p className="text-[11px] text-gray-500 mt-2">Choisis une vidéo, puis clique sur « Mettre à jour » pour la publier sur le site.</p>}
           {uploadError && <p className="text-red-400 text-sm mt-3">{uploadError}</p>}
-          {current?.provider === 'cloudinary' && current?.url && (
-            <video src={current.url} controls className="w-full rounded-xl mt-4 max-h-56" />
+          {pickedPreview ? (
+            <>
+              <p className="text-[11px] text-gray-400 mt-4 mb-1">Aperçu du fichier choisi (pas encore publié) :</p>
+              <video src={pickedPreview} controls className="w-full rounded-xl max-h-56" />
+            </>
+          ) : (
+            current?.provider === 'cloudinary' && current?.url && (
+              <video src={current.url} controls className="w-full rounded-xl mt-4 max-h-56" />
+            )
           )}
         </div>
       )}
