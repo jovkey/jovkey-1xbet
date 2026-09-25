@@ -23,7 +23,15 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="fr">
+    <html lang="fr" suppressHydrationWarning>
+      <head>
+        {/* Applique le thème enregistré AVANT le premier affichage (évite le flash sombre). */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{var t=localStorage.getItem('jovkey_theme');if(t==='light'||t==='sky'){document.documentElement.setAttribute('data-theme',t)}}catch(e){}`,
+          }}
+        />
+      </head>
       <body className="bg-night text-ink antialiased">
         {children}
         {/* Formulaire « Recharger mon compte 1xBet » — monté une fois, ouvert partout via openRecharge(). */}

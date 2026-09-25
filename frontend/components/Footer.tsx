@@ -1,6 +1,6 @@
 export default function Footer() {
   return (
-    <footer className="bg-black py-12 px-6 border-t border-white/5 text-center">
+    <footer className="bg-night py-12 px-6 border-t border-white/5 text-center">
       <div className="mb-6">
         <div className="text-2xl font-black text-gold italic">Coupon Gratuit</div>
         <div className="text-[10px] uppercase tracking-[0.3em] text-gray-500 mt-1">de JovGroup</div>

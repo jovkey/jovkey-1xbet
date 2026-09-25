@@ -31,18 +31,18 @@ export default function Community() {
           <CommunityCta />
           <div className="flex flex-wrap gap-4 mt-4">
             <a href={links.telegram} target="_blank" rel="noopener noreferrer"
-              className="flex items-center bg-[#229ED9] px-6 rounded-xl font-bold hover:brightness-110 transition tap-target">
+              className="flex items-center bg-[#229ED9] !text-white px-6 rounded-xl font-bold hover:brightness-110 transition tap-target">
               <Send className="mr-3" /> Telegram
             </a>
             <a href={links.whatsapp} target="_blank" rel="noopener noreferrer"
-              className="flex items-center bg-[#25D366] px-6 rounded-xl font-bold hover:brightness-110 transition tap-target">
+              className="flex items-center bg-[#25D366] !text-white px-6 rounded-xl font-bold hover:brightness-110 transition tap-target">
               <MessageCircle className="mr-3" /> WhatsApp
             </a>
           </div>
           <CommunityCta />
         </div>
         <div className="flex-1">
-          <div className="w-64 h-96 bg-black rounded-[3rem] border-4 border-slate-700 relative mx-auto shadow-2xl overflow-hidden">
+          <div className="w-64 h-96 bg-black !text-white rounded-[3rem] border-4 border-slate-700 relative mx-auto shadow-2xl overflow-hidden">
             <div className="bg-electric h-10 w-full flex items-center px-4 text-[10px] font-bold">
               COUPON GRATUIT
             </div>
@@ -57,7 +57,7 @@ export default function Community() {
                 <div className="w-full h-20 bg-slate-700 rounded-md mb-2 flex items-center justify-center text-xs">
                   COUPON COTE 5.40
                 </div>
-                <div className="text-[8px] text-gray-400">Utilise le code JOVKEY pour doubler tes gains.</div>
+                <div className="text-[8px] !text-gray-400">Utilise le code JOVKEY pour doubler tes gains.</div>
               </div>
             </div>
           </div>

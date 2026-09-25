@@ -4,24 +4,89 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Thèmes : sombre (défaut), blanc, bleu ciel ─────────────────────────
+   Le thème est posé par ThemeSwitcher via <html data-theme="...">. */
 :root {
   color-scheme: dark;
+  --night: 15 23 42; /* fond */
+  --ink: 248 250 252; /* texte principal */
+}
+html[data-theme='light'] {
+  color-scheme: light;
+  --night: 248 250 252;
+  --ink: 15 23 42;
+}
+html[data-theme='sky'] {
+  color-scheme: light;
+  --night: 224 242 254;
+  --ink: 12 30 60;
 }
 
 body {
   font-family: 'Inter', sans-serif;
-  background-color: #0f172a;
-  color: #f8fafc;
+  background-color: rgb(var(--night));
+  color: rgb(var(--ink));
   overflow-x: hidden;
 }
 
+/* Adaptation des couleurs « pensées pour fond sombre » aux thèmes clairs. */
+html[data-theme='light'],
+html[data-theme='sky'] {
+  --glass-bg: rgba(255, 255, 255, 0.75);
+  --glass-border: rgba(15, 23, 42, 0.14);
+}
+html[data-theme='light'] .text-white,
+html[data-theme='sky'] .text-white,
+html[data-theme='light'] .hover\:text-white:hover,
+html[data-theme='sky'] .hover\:text-white:hover { color: rgb(var(--ink)); }
+html[data-theme='light'] .text-gray-200,
+html[data-theme='sky'] .text-gray-200 { color: #1e293b; }
+html[data-theme='light'] .text-gray-300,
+html[data-theme='sky'] .text-gray-300 { color: #334155; }
+html[data-theme='light'] .text-gray-400,
+html[data-theme='sky'] .text-gray-400 { color: #475569; }
+html[data-theme='light'] .text-gray-500,
+html[data-theme='sky'] .text-gray-500 { color: #64748b; }
+html[data-theme='light'] .text-gray-600,
+html[data-theme='sky'] .text-gray-600 { color: #64748b; }
+html[data-theme='light'] .text-gold,
+html[data-theme='sky'] .text-gold,
+html[data-theme='light'] .hover\:text-gold:hover,
+html[data-theme='sky'] .hover\:text-gold:hover { color: #b45309; }
+html[data-theme='light'] .text-electric,
+html[data-theme='sky'] .text-electric { color: #1d4ed8; }
+html[data-theme='light'] .text-live,
+html[data-theme='sky'] .text-live { color: #15803d; }
+html[data-theme='light'] .bg-white\/5,
+html[data-theme='sky'] .bg-white\/5 { background-color: rgba(15, 23, 42, 0.05); }
+html[data-theme='light'] .bg-white\/10,
+html[data-theme='sky'] .bg-white\/10,
+html[data-theme='light'] .hover\:bg-white\/10:hover,
+html[data-theme='sky'] .hover\:bg-white\/10:hover { background-color: rgba(15, 23, 42, 0.08); }
+html[data-theme='light'] .bg-white\/15,
+html[data-theme='sky'] .bg-white\/15,
+html[data-theme='light'] .bg-white\/20,
+html[data-theme='sky'] .bg-white\/20 { background-color: rgba(15, 23, 42, 0.14); }
+html[data-theme='light'] .bg-black\/20,
+html[data-theme='sky'] .bg-black\/20,
+html[data-theme='light'] .bg-black\/30,
+html[data-theme='sky'] .bg-black\/30 { background-color: rgba(15, 23, 42, 0.06); }
+html[data-theme='light'] .border-white\/5,
+html[data-theme='sky'] .border-white\/5,
+html[data-theme='light'] .border-white\/10,
+html[data-theme='sky'] .border-white\/10,
+html[data-theme='light'] .border-white\/15,
+html[data-theme='sky'] .border-white\/15 { border-color: rgba(15, 23, 42, 0.14); }
+html[data-theme='light'] .bg-slate-900\/50,
+html[data-theme='sky'] .bg-slate-900\/50 { background-color: rgba(255, 255, 255, 0.55); }
+
 @layer components {
-  /* Glassmorphism — fond transparent sombre + flou + bordure fine */
+  /* Glassmorphism — fond translucide + flou + bordure fine (variables = thème) */
   .glass {
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--glass-bg, rgba(255, 255, 255, 0.03));
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.1));
   }
 
   .gold-gradient {
@@ -47,4 +112,16 @@ body {
   .tap-target {
     min-height: 48px;
   }
+}
+
+/* Cartes VIP / shimmer en thème clair (déclarées après @layer pour l'emporter) */
+html[data-theme='light'] .vip-card,
+html[data-theme='sky'] .vip-card {
+  background: linear-gradient(145deg, #ffffff, #f1f5f9);
+  border-color: rgba(217, 119, 6, 0.35);
+}
+html[data-theme='light'] .coupon-shimmer,
+html[data-theme='sky'] .coupon-shimmer {
+  background: linear-gradient(90deg, #e2e8f0 25%, #f8fafc 50%, #e2e8f0 75%);
+  background-size: 200% 100%;
 }

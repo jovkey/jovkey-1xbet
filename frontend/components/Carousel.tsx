@@ -48,14 +48,14 @@ export default function Carousel({ slides }: { slides: CarouselSlide[] }) {
             <button
               onClick={(e) => { e.stopPropagation(); go(-1); }}
               aria-label="Image précédente"
-              className="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/50 hover:bg-black/70 backdrop-blur flex items-center justify-center text-white tap-target transition"
+              className="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/50 hover:bg-black/70 backdrop-blur flex items-center justify-center !text-white tap-target transition"
             >
               <ChevronLeft size={22} />
             </button>
             <button
               onClick={(e) => { e.stopPropagation(); go(1); }}
               aria-label="Image suivante"
-              className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/50 hover:bg-black/70 backdrop-blur flex items-center justify-center text-white tap-target transition"
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/50 hover:bg-black/70 backdrop-blur flex items-center justify-center !text-white tap-target transition"
             >
               <ChevronRight size={22} />
             </button>
